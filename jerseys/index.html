@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jersey Shop</title>
+<meta name="description" content="Seattle and NFL jerseys in stock in the Tri-Cities, plus special orders for any player, any size.">
+<meta name="theme-color" content="#0b1f3a">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #0b1f3a; }
+  iframe { display: block; border: 0; width: 100%; height: 100vh; height: 100dvh; }
+</style>
+</head>
+<body>
+<iframe id="app" title="Jersey Shop" allow="clipboard-write; camera"></iframe>
+<script>
+  // Your Apps Script web app. Anything after the ? in this page's address
+  // (like ?page=special or ?page=admin) is passed through to it.
+  var APP = 'https://script.google.com/macros/s/AKfycbz1w5HRcCWyBn_TbWXkUQvgU9M-avPYMyBKm8MVJTrySzVSQwYcOo3FWoqO6d1pFdc/exec';
+  document.getElementById('app').src = APP + (location.search || '');
+</script>
+</body>
+</html>
