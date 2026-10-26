@@ -17,7 +17,11 @@
   // Your Apps Script web app. Anything after the ? in this page's address
   // (like ?page=special or ?page=admin) is passed through to it.
   var APP = 'https://script.google.com/macros/s/AKfycbz1w5HRcCWyBn_TbWXkUQvgU9M-avPYMyBKm8MVJTrySzVSQwYcOo3FWoqO6d1pFdc/exec';
-  document.getElementById('app').src = APP + (location.search || '');
+  // For the app's visit counts: pass along which site sent the visitor (Facebook, Google…), never anything personal.
+  var q = location.search || '', ref = '';
+  try { ref = document.referrer ? new URL(document.referrer).hostname : ''; } catch (e) { ref = ''; }
+  if (ref && ref !== location.hostname && !/[?&]ref=/.test(q)) q += (q ? '&' : '?') + 'ref=' + encodeURIComponent(ref);
+  document.getElementById('app').src = APP + q;
 </script>
 </body>
 </html>
