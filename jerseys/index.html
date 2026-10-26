@@ -6,13 +6,30 @@
 <title>Jersey Shop</title>
 <meta name="description" content="Seattle and NFL jerseys in stock in the Tri-Cities, plus special orders for any player, any size.">
 <meta name="theme-color" content="#0b1f3a">
+<!-- Home screen icon: the staff app (?page=admin) gets its own name and icon -->
+<link rel="manifest" id="mf" href="manifest.json">
+<link rel="apple-touch-icon" id="ati" href="icon-180.png">
+<link rel="icon" type="image/png" id="fav" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" id="awt" content="Jersey Shop">
+<script>
+  if (/[?&]page=admin\b/.test(location.search)) {
+    document.getElementById('mf').href = 'manifest-staff.json';
+    document.getElementById('ati').href = 'icon-staff-180.png';
+    document.getElementById('fav').href = 'icon-staff-192.png';
+    document.getElementById('awt').content = 'JS Staff';
+    document.title = 'Jersey Shop Staff';
+  }
+</script>
 <style>
   html, body { margin: 0; padding: 0; height: 100%; background: #0b1f3a; }
   iframe { display: block; border: 0; width: 100%; height: 100vh; height: 100dvh; }
 </style>
 </head>
 <body>
-<iframe id="app" title="Jersey Shop" allow="clipboard-write; camera"></iframe>
+<iframe id="app" title="Jersey Shop" allow="clipboard-write; camera; web-share"></iframe>
 <script>
   // Your Apps Script web app. Anything after the ? in this page's address
   // (like ?page=special or ?page=admin) is passed through to it.
@@ -22,6 +39,24 @@
   try { ref = document.referrer ? new URL(document.referrer).hostname : ''; } catch (e) { ref = ''; }
   if (ref && ref !== location.hostname && !/[?&]ref=/.test(q)) q += (q ? '&' : '?') + 'ref=' + encodeURIComponent(ref);
   document.getElementById('app').src = APP + q;
+
+  // "Add to home screen": the app asks here whether a one-tap install is possible, and taps Add through here.
+  var installEvt = null, installed = false;
+  function standalone(){ return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
+  function tell(target){
+    try { (target || document.getElementById('app').contentWindow).postMessage({ js: 'installState', can: !!installEvt, standalone: standalone(), installed: installed }, '*'); } catch (e) {}
+  }
+  var asked = [];
+  window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); installEvt = e; asked.forEach(tell); });
+  window.addEventListener('appinstalled', function(){ installed = true; installEvt = null; asked.forEach(tell); });
+  window.addEventListener('message', function(e){
+    var d = e.data || {};
+    if (d.js === 'installState?') { if (asked.indexOf(e.source) < 0) asked.push(e.source); tell(e.source); }
+    if (d.js === 'install' && installEvt) {
+      installEvt.prompt();
+      installEvt.userChoice.then(function(r){ if (r && r.outcome === 'accepted') installed = true; installEvt = null; asked.forEach(tell); });
+    }
+  });
 </script>
 </body>
 </html>
