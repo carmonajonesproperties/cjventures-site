@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Send text</title>
+<meta name="theme-color" content="#0b1f3a">
+<style>
+  html, body { margin: 0; background: #0b1f3a; color: #fff;
+    font: 17px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 22px 18px 40px; }
+  h1 { font-size: 21px; margin: 0 0 14px; }
+  .lbl { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #9fb3cf; margin: 16px 0 6px; }
+  .box { background: #fff; color: #0b1f3a; border-radius: 10px; padding: 12px 14px; white-space: pre-wrap; word-wrap: break-word; }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .row .box { flex: 1; font-weight: 700; font-size: 19px; }
+  a.go { display: block; text-align: center; margin: 20px 0 6px; padding: 16px; border-radius: 12px;
+    background: #69be28; color: #0b1f3a; font-weight: 800; font-size: 19px; text-decoration: none; }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 10px; padding: 12px 14px;
+    background: #24456f; color: #fff; }
+  button.wide { width: 100%; margin-top: 10px; }
+  .note { font-size: 14px; color: #9fb3cf; margin-top: 18px; }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #fff; color: #0b1f3a;
+    padding: 10px 16px; border-radius: 20px; font-weight: 700; display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>💬 Send this text</h1>
+  <a class="go" id="go" href="#">Open Messages</a>
+  <div class="lbl">To</div>
+  <div class="row"><div class="box" id="to"></div><button type="button" id="copyTo">Copy</button></div>
+  <div class="lbl">Message</div>
+  <div class="box" id="msg"></div>
+  <button type="button" class="wide" id="copyMsg">📋 Copy message</button>
+  <div class="note">If Messages opens without the number or message, come back here, copy them, and paste them in.
+    When you're done, close this tab to get back to the app.</div>
+</main>
+<div id="toast"></div>
+<script>
+  // The app opens this page as cjventures.app/jerseys/text.html#to=NUMBER&body=MESSAGE.
+  // Everything is after the #, so the number and message never get sent to the website.
+  var p = {};
+  location.hash.replace(/^#/, '').split('&').forEach(function (kv) {
+    var i = kv.indexOf('='); if (i < 0) return;
+    try { p[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); } catch (e) {}
+  });
+  var to = String(p.to || '').replace(/[^\d+]/g, ''), body = String(p.body || '');
+  if (/^\d{10}$/.test(to)) to = '+1' + to; else if (/^1\d{10}$/.test(to)) to = '+' + to;
+  var ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var enc = encodeURIComponent(body).replace(/[!'()*~]/g, function (c) { return '%' + c.charCodeAt(0).toString(16).toUpperCase(); });
+  var href = 'sms:' + to + (body ? (ios ? '&body=' : '?body=') + enc : '');
+
+  function pretty(n) { var d = n.replace(/^\+1/, ''); return /^\d{10}$/.test(d) ? '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6) : n; }
+  document.getElementById('to').textContent = to ? pretty(to) : 'No number';
+  document.getElementById('msg').textContent = body || '(no message)';
+  document.getElementById('go').href = href;
+
+  function toast(t) { var el = document.getElementById('toast'); el.textContent = t; el.style.display = 'block';
+    clearTimeout(toast.t); toast.t = setTimeout(function () { el.style.display = 'none'; }, 2200); }
+  function copy(s, what) {
+    var ok = false;
+    try { var t = document.createElement('textarea'); t.value = s; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select(); t.setSelectionRange(0, s.length); ok = document.execCommand('copy'); document.body.removeChild(t); } catch (e) {}
+    if (!ok && navigator.clipboard) { navigator.clipboard.writeText(s).then(function () { toast(what + ' copied'); }, function () { toast('Press and hold to copy'); }); return; }
+    toast(ok ? what + ' copied' : 'Press and hold to copy');
+  }
+  document.getElementById('copyTo').onclick = function () { copy(to.replace(/^\+1/, ''), 'Number'); };
+  document.getElementById('copyMsg').onclick = function () { copy(body, 'Message'); };
+  // Copy the message too when you tap Open Messages, so it's ready to paste if the app drops it.
+  document.getElementById('go').addEventListener('click', function () { if (body) copy(body, 'Message'); });
+</script>
+</body>
+</html>
