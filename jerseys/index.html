@@ -6,6 +6,16 @@
 <title>Jersey Shop</title>
 <meta name="description" content="Seattle and NFL jerseys in stock in the Tri-Cities, plus special orders for any player, any size.">
 <meta name="theme-color" content="#0b1f3a">
+<!-- Link preview card for Facebook / Messenger / texts -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Jersey Shop">
+<meta property="og:title" content="Jersey Shop – Tri-Cities">
+<meta property="og:description" content="Seattle and NFL jerseys in stock in the Tri-Cities, plus special orders for any player, any size.">
+<meta property="og:url" content="https://cjventures.app/jerseys/">
+<meta property="og:image" content="https://cjventures.app/jerseys/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<link rel="canonical" href="https://cjventures.app/jerseys/">
 <!-- Home screen icon: the staff app (?page=admin) gets its own name and icon -->
 <link rel="manifest" id="mf" href="manifest.json">
 <link rel="apple-touch-icon" id="ati" href="icon-180.png">
@@ -26,10 +36,16 @@
 <style>
   html, body { margin: 0; padding: 0; height: 100%; background: #0b1f3a; }
   iframe { display: block; border: 0; width: 100%; height: 100vh; height: 100dvh; }
+  #fallback { display: none; position: fixed; inset: 0; background: #0b1f3a; color: #fff;
+    font: 17px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    text-align: center; padding: 30vh 24px 0; box-sizing: border-box; }
+  #fallback a { display: inline-block; margin-top: 18px; padding: 14px 28px; border-radius: 10px;
+    background: #69be28; color: #0b1f3a; font-weight: 700; text-decoration: none; }
 </style>
 </head>
 <body>
 <iframe id="app" title="Jersey Shop" allow="clipboard-write; camera; web-share"></iframe>
+<div id="fallback">Taking a while to load?<br><a id="openDirect" href="#">Open the Jersey Shop</a></div>
 <script>
   // Your Apps Script web app. Anything after the ? in this page's address
   // (like ?page=special or ?page=admin) is passed through to it.
@@ -37,8 +53,22 @@
   // For the app's visit counts: pass along which site sent the visitor (Facebook, Google…), never anything personal.
   var q = location.search || '', ref = '';
   try { ref = document.referrer ? new URL(document.referrer).hostname : ''; } catch (e) { ref = ''; }
+  // Facebook, Messenger and Instagram open links in their own built-in browser, which
+  // blocks the Google app from loading inside this page (customers just see a blank screen).
+  var inApp = /FBAN|FBAV|FB_IAB|FBIOS|FB4A|FBDV|Messenger|Instagram/i.test(navigator.userAgent || '');
+  if (!ref && inApp) ref = /Instagram/i.test(navigator.userAgent) ? 'instagram.com' : 'facebook.com';
   if (ref && ref !== location.hostname && !/[?&]ref=/.test(q)) q += (q ? '&' : '?') + 'ref=' + encodeURIComponent(ref);
-  document.getElementById('app').src = APP + q;
+  document.getElementById('openDirect').href = APP + q;
+  if (inApp) {
+    // Skip the frame and open the shop directly — it loads fine that way.
+    location.replace(APP + q);
+  } else {
+    var loaded = false;
+    document.getElementById('app').onload = function(){ loaded = true; document.getElementById('fallback').style.display = 'none'; };
+    document.getElementById('app').src = APP + q;
+    // Backup for any other browser that blocks it: offer a direct button after 8 seconds.
+    setTimeout(function(){ if (!loaded) document.getElementById('fallback').style.display = 'block'; }, 8000);
+  }
 
   // "Add to home screen": the app asks here whether a one-tap install is possible, and taps Add through here.
   var installEvt = null, installed = false;
