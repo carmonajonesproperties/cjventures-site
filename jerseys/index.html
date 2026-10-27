@@ -59,15 +59,25 @@
   if (!ref && inApp) ref = /Instagram/i.test(navigator.userAgent) ? 'instagram.com' : 'facebook.com';
   if (ref && ref !== location.hostname && !/[?&]ref=/.test(q)) q += (q ? '&' : '?') + 'ref=' + encodeURIComponent(ref);
   document.getElementById('openDirect').href = APP + q;
-  if (inApp) {
-    // Skip the frame and open the shop directly — it loads fine that way.
+  // The staff app (?page=admin) can get stuck spinning inside this frame on some phones, even
+  // though it opens fine on its own. If it hasn't started within 6 seconds, open it directly,
+  // and remember that so this phone goes straight there next time.
+  var staff = /[?&]page=admin\b/.test(q), appStarted = false;
+  function sget(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function sset(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
+  if (inApp || (staff && sget('jsStaffDirect') === '1')) {
+    // Skip the frame and open the app directly — it loads fine that way.
     location.replace(APP + q);
   } else {
     var loaded = false;
-    document.getElementById('app').onload = function(){ loaded = true; document.getElementById('fallback').style.display = 'none'; };
+    document.getElementById('app').onload = function(){ loaded = true; if (!staff) document.getElementById('fallback').style.display = 'none'; };
     document.getElementById('app').src = APP + q;
-    // Backup for any other browser that blocks it: offer a direct button after 8 seconds.
-    setTimeout(function(){ if (!loaded) document.getElementById('fallback').style.display = 'block'; }, 8000);
+    if (staff) {
+      setTimeout(function(){ if (!appStarted) { sset('jsStaffDirect', '1'); location.replace(APP + q); } }, 6000);
+    } else {
+      // Backup for any other browser that blocks it: offer a direct button after 8 seconds.
+      setTimeout(function(){ if (!loaded && !appStarted) document.getElementById('fallback').style.display = 'block'; }, 8000);
+    }
   }
 
   // "Add to home screen": the app asks here whether a one-tap install is possible, and taps Add through here.
@@ -81,7 +91,7 @@
   window.addEventListener('appinstalled', function(){ installed = true; installEvt = null; asked.forEach(tell); });
   window.addEventListener('message', function(e){
     var d = e.data || {};
-    if (d.js === 'installState?') { if (asked.indexOf(e.source) < 0) asked.push(e.source); tell(e.source); }
+    if (d.js === 'installState?') { appStarted = true; document.getElementById('fallback').style.display = 'none'; if (asked.indexOf(e.source) < 0) asked.push(e.source); tell(e.source); }
     if (d.js === 'install' && installEvt) {
       installEvt.prompt();
       installEvt.userChoice.then(function(r){ if (r && r.outcome === 'accepted') installed = true; installEvt = null; asked.forEach(tell); });
