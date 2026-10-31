@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jersey Shop</title>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://cjventures.app/jerseys/">
+<script>
+  // The jersey shop lives at /jerseys/. Send anyone who lands on the bare domain there,
+  // keeping any order details (?page=track&id=...) and #anchors from their link.
+  location.replace('/jerseys/' + location.search + location.hash);
+</script>
+<noscript><meta http-equiv="refresh" content="0; url=/jerseys/"></noscript>
+<style>body{font:17px -apple-system,BlinkMacSystemFont,sans-serif;text-align:center;padding:60px 20px;color:#0b1f3a}a{color:#3f8f12;font-weight:700}</style>
+</head>
+<body>
+<p>Opening the Jersey Shop…</p>
+<p><a href="/jerseys/">Tap here if it doesn't open</a></p>
+</body>
+</html>
