@@ -65,6 +65,27 @@
   var staff = /[?&]page=admin\b/.test(q), appStarted = false;
   function sget(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
   function sset(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
+  // Install log: tell the app once per phone when someone adds Jersey Shop or JS Staff to their home screen
+  // (Android/Chrome announce the install; other phones are caught the first time they open from the icon).
+  function device(){
+    var ua = navigator.userAgent || '';
+    if (/iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'iPad';
+    if (/iPhone|iPod/.test(ua)) return 'iPhone';
+    if (/Android/.test(ua)) return /Mobile/.test(ua) ? 'Android phone' : 'Android tablet';
+    if (/Windows/.test(ua)) return 'Windows computer';
+    if (/Mac/.test(ua)) return 'Mac';
+    if (/CrOS/.test(ua)) return 'Chromebook';
+    return 'Other';
+  }
+  function logInstall(how){
+    var k = 'jsInstLogged_' + (staff ? 'staff' : 'shop');
+    if (sget(k) === '1') return;
+    sset(k, '1');
+    var url = APP + '?log=install&app=' + (staff ? 'staff' : 'shop') + '&how=' + how + '&dev=' + encodeURIComponent(device());
+    try { fetch(url, { mode: 'no-cors', keepalive: true }); } catch (e) { try { new Image().src = url; } catch (e2) {} }
+  }
+  window.addEventListener('appinstalled', function(){ logInstall('installed'); });
+  if (standalone()) logInstall('opened');
   if (inApp || (staff && sget('jsStaffDirect') === '1')) {
     // Skip the frame and open the app directly — it loads fine that way.
     location.replace(APP + q);
