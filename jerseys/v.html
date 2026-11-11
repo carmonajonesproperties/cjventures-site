@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Pay with Venmo - Jersey Shop</title>
+<style>
+body{margin:0;background:#0b1f3a;color:#fff;font:17px/1.45 sans-serif;text-align:center}
+main{max-width:480px;margin:0 auto;padding:28px 18px}
+#a{font-size:46px;font-weight:800}
+.s{color:#9fb3cf;font-size:15px}
+#go{display:block;margin:22px 0 10px;padding:17px;border-radius:12px;background:#3d95ce;color:#fff;font-weight:800;font-size:20px;text-decoration:none}
+a{color:#cfe0f5}
+</style></head><body><main>
+<b>Jersey Shop</b>
+<div id="a"></div>
+<div class="s" id="n"></div>
+<a id="go" href="#">Pay with Venmo</a>
+<div class="s">Pay to <b id="t"></b><br>Thanks! - Charles<br><a id="w" href="#">Pay on venmo.com instead</a></div>
+</main><script>
+var q={};location.search.slice(1).split('&').forEach(function(p){var i=p.indexOf('=');if(i>0)try{q[p.slice(0,i)]=decodeURIComponent(p.slice(i+1))}catch(e){}});
+var to=(q.to||'Charles99301').replace(/[^\w-]/g,''),amt=(parseFloat(q.amt)||0).toFixed(2),note=q.note||'';
+var ua=navigator.userAgent,and=/Android/i.test(ua),ios=/iP(hone|ad|od)/.test(ua);
+var inApp=/FBAN|FBAV|FB_IAB|Messenger|Instagram|; wv\)/i.test(ua);
+var p='txn=pay&recipients='+to+'&amount='+amt+'&note='+encodeURIComponent(note);
+var web='https://venmo.com/'+to+'?txn=pay&amount='+amt+'&note='+encodeURIComponent(note);
+var app=and?'intent://paycharge?'+p+'#Intent;scheme=venmo;package=com.venmo;end':ios?'venmo://paycharge?'+p:web;
+document.getElementById('a').textContent='$'+amt;
+document.getElementById('n').textContent=note?'Order '+note:'';
+document.getElementById('t').textContent='@'+to;
+document.getElementById('go').href=app;
+document.getElementById('w').href=web;
+var out=location.href.split('#')[0]+'&ob=1';
+if(inApp){if(!q.ob){if(and)location.href='intent://'+out.replace(/^https?:\/\//,'')+'#Intent;scheme=https;package=com.android.chrome;end';if(ios)location.href='x-safari-'+out}}
+else if(and||ios)setTimeout(function(){location.href=app},300);
+</script></body></html>
