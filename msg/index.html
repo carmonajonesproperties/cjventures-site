@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jersey Shop</title>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Jersey Shop">
+<meta property="og:title" content="Jersey Shop – Tri-Cities">
+<meta property="og:description" content="Seattle and NFL jerseys in stock in the Tri-Cities, plus special orders for any player, any size.">
+<meta property="og:url" content="https://carmonajones.com/msg">
+<meta property="og:image" content="https://carmonajones.com/jerseys/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<script>
+  // Short Messenger link: opens the shop tagged as sent in a Facebook Messenger message so the app counts the visit and orders.
+  var q = location.search || '';
+  if (!/[?&]from=/.test(q)) q += (q ? '&' : '?') + 'from=msg';
+  location.replace('/jerseys/' + q + location.hash);
+</script>
+<noscript><meta http-equiv="refresh" content="0; url=/jerseys/?from=msg"></noscript>
+<style>body{font:17px -apple-system,BlinkMacSystemFont,sans-serif;text-align:center;padding:60px 20px;color:#0b1f3a}a{color:#3f8f12;font-weight:700}</style>
+</head>
+<body>
+<p>Opening the Jersey Shop…</p>
+<p><a href="/jerseys/?from=msg">Tap here if it doesn't open</a></p>
+</body>
+</html>
