@@ -3,19 +3,40 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Jersey Shop</title>
+<title>Carmona Jones</title>
 <meta name="robots" content="noindex">
-<link rel="canonical" href="https://carmonajones.com/jerseys/">
 <script>
-  // The jersey shop lives at /jerseys/. Send anyone who lands on the bare domain there,
-  // keeping any order details (?page=track&id=...) and #anchors from their link.
-  location.replace('/jerseys/' + location.search + location.hash);
+  // Old links to the bare domain carried order details (?page=track&id=...). Keep sending those to the
+  // shop so customers still land on their order. Only a plain visit sees the app list below.
+  if (location.search || location.hash) location.replace('/jerseys/' + location.search + location.hash);
 </script>
-<noscript><meta http-equiv="refresh" content="0; url=/jerseys/"></noscript>
-<style>body{font:17px -apple-system,BlinkMacSystemFont,sans-serif;text-align:center;padding:60px 20px;color:#0b1f3a}a{color:#3f8f12;font-weight:700}</style>
+<style>
+  :root { --bg:#f7f5f0; --ink:#1d2a2f; --muted:#5d6b70; --accent:#1f5f6b; --card:#fff; --line:#e3ded3; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); line-height:1.5; }
+  header, main, footer { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+  header { padding-top: 56px; padding-bottom: 16px; }
+  .brand { font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  h1 { font-size: clamp(32px,6vw,48px); line-height: 1.1; margin: 10px 0 0; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; padding-top: 24px; }
+  .card { display:block; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; text-decoration:none; color:inherit; transition:transform .15s, box-shadow .15s; }
+  .card:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,.08); }
+  .card h2 { margin:0 0 4px; font-size:18px; }
+  .card p { margin:0; color:var(--muted); font-size:14px; }
+  footer { margin-top:48px; padding-top:20px; padding-bottom:40px; border-top:1px solid var(--line); color:var(--muted); font-size:14px; }
+</style>
 </head>
 <body>
-<p>Opening the Jersey Shop…</p>
-<p><a href="/jerseys/">Tap here if it doesn't open</a></p>
+<header>
+  <div class="brand">Carmona Jones</div>
+  <h1>My apps</h1>
+</header>
+<main>
+  <section class="grid">
+    <a class="card" href="/jerseys/"><h2>Jersey Shop</h2><p>Orders, inventory, supplier</p></a>
+    <a class="card" href="/TheTurnoverCrew/"><h2>The Turnover Crew</h2><p>Cleaners, snack shop, repairs</p></a>
+  </section>
+</main>
+<footer>&copy; Carmona Jones Properties, LLC</footer>
 </body>
 </html>

@@ -8,7 +8,9 @@
 <script>
   // Mistyped or cut-off address (e.g. /Jerseys, /jersey, /jerseys/order): open the shop instead of an error,
   // keeping any order details from the link.
-  location.replace('/jerseys/' + location.search + location.hash);
+  // Mistyped Turnover Crew address (any capitalization) goes to that app; everything else opens the shop.
+  var dest = /^\/theturnovercrew\/?/i.test(location.pathname) ? '/TheTurnoverCrew/' : '/jerseys/';
+  location.replace(dest + location.search + location.hash);
 </script>
 <noscript><meta http-equiv="refresh" content="0; url=/jerseys/"></noscript>
 <style>body{font:17px -apple-system,BlinkMacSystemFont,sans-serif;text-align:center;padding:60px 20px;color:#0b1f3a}a{color:#3f8f12;font-weight:700}</style>
