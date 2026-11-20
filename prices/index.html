@@ -66,6 +66,9 @@ label{display:block;font-weight:700;font-size:14px;margin:12px 0 6px}
 .tabs{display:flex;gap:6px;margin:0 0 8px}.tabs button{flex:1}
 .editf{background:#fffaf5;border:1px solid var(--line);border-radius:12px;padding:10px;margin:6px 0}
 .editf label{margin:8px 0 4px}.editf input{padding:9px}
+.pbox{background:#f3fbf9;border:1px solid #cdeee7;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:14px}
+.pbox .big{font-size:20px;font-weight:800}
+.pline{display:flex;justify-content:space-between;gap:8px;padding:3px 0}
 .hidden{display:none!important}
 </style>
 </head>
@@ -163,7 +166,9 @@ label{display:block;font-weight:700;font-size:14px;margin:12px 0 6px}
         <button type="button" class="chip" data-n="Clearance">Clearance</button>
         <button type="button" class="chip" data-n="Online price">Online price</button>
       </div>
-      <div id="profitOut" class="by" style="margin-top:10px"></div>
+      <div id="profitOut" class="pbox hidden"></div>
+      <label for="sellIn">Your selling price (optional, tax included)</label>
+      <input id="sellIn" class="cash" inputmode="decimal" placeholder="Leave empty to use the suggested price" autocomplete="off">
 
       <div class="row" style="margin-top:14px">
         <button class="ghost" style="flex:0 0 auto" onclick="skipItem()">Skip</button>
@@ -462,6 +467,7 @@ function fillPanel(r, loading) {
   $('packHint').textContent = pk && pk.n > 1 ? (pk.from === 'last time' ? 'Pack size: ' + pk.n + ', same as last time. Change it if this pack is different.' : 'Pack size: ' + pk.n + ', read from the name. Change it if that is wrong.') : '';
   $('saleIn').checked = false; $('saleBox').classList.add('hidden'); $('regIn').value = ''; $('endsIn').value = ''; $('regHint').textContent = ''; $('saleOut').innerHTML = '';
   $('noteIn').value = ''; markNote();
+  var gs = r && r.pricing && r.pricing.sell; $('sellIn').value = gs ? Number(gs.price).toFixed(2) : ''; CUR && (CUR.sell0 = $('sellIn').value);
   eachCalc();
   $('codeOut').textContent = 'Barcode ' + (CUR ? CUR.code : '');
   $('saveBtn').disabled = !!loading;
@@ -529,14 +535,35 @@ $('noteChips').addEventListener('click', function (e) {
 });
 function markNote() { var parts = $('noteIn').value.split(/\s*,\s*/); Array.prototype.forEach.call($('noteChips').children, function (b) { b.classList.toggle('on', parts.indexOf(b.getAttribute('data-n')) >= 0); }); }
 $('noteIn').addEventListener('input', markNote);
-/* Profit per item at the price you sell it for in the snack shop. */
-function profitCalc() {
-  var out = $('profitOut'), r = CUR && CUR.r, p = priceVal(), n = Math.max(1, parseInt($('countIn').value, 10) || 1);
-  if (!r || !r.shop || !(r.shop.retail > 0) || !(p > 0)) { out.innerHTML = ''; return; }
-  var each = p / n, pr = r.shop.retail - each;
-  out.innerHTML = '💵 You sell it for ' + money(r.shop.retail) + ': ' + (pr > 0 ? '<span class="good">' + money(pr) + ' profit per item (' + Math.round(pr / r.shop.retail * 100) + '%)</span>' : '<span class="badtxt">' + money(-pr) + ' loss per item</span>') +
-    (r.shop.cost > 0 ? ' · your cost now ' + money(r.shop.cost) + ' each' + (each < r.shop.cost - 0.004 ? ', <span class="good">this is ' + money(r.shop.cost - each) + ' cheaper</span>' : '') : '');
+/* ---------- 💡 selling price for the snack shop: same math as the app (tax included, quarter-rounded, fair but profitable) ---------- */
+function pricing() { var g = CUR && CUR.r && CUR.r.pricing; return g || { rate: 0.089, minMargin: 30, taxable: true }; }
+function targetMargin(cost, minM) { var t = cost <= 0.75 ? 50 : cost <= 1.5 ? 45 : cost <= 3 ? 40 : 35; return Math.max(minM || 30, t); }
+function priceMath(price, cost, rate) { price = Math.round(price * 100) / 100; var net = price / (1 + (rate || 0)), pr = net - cost; return { price: price, profit: Math.round(pr * 100) / 100, margin: net > 0 ? Math.round(pr / net * 100) : 0 }; }
+function suggestPrice(cost, rate, minM) {
+  if (!(cost > 0)) return null;
+  var t = targetMargin(cost, minM), pre = Math.max(cost / (1 - t / 100), cost + 0.4), shelf = pre * (1 + rate), step = shelf >= 5 ? 0.5 : 0.25;
+  var p = Math.max(step, Math.round(shelf / step) * step), floor = Math.max(minM || 30, t - 5);
+  for (var i = 0; i < 400 && (priceMath(p, cost, rate).margin < floor || priceMath(p, cost, rate).profit < 0.3); i++) p += step;
+  return priceMath(p, cost, rate);
 }
+function pmLine(label, m, strong) {
+  if (!m) return '';
+  return '<div class="pline"><div>' + label + '</div><div style="text-align:right"><b' + (strong ? ' class="big"' : '') + '>' + money(m.price) + '</b><div class="by">' +
+    (m.profit > 0 ? '<span class="good">' + money(m.profit) + ' profit</span> · ' + m.margin + '% margin' : '<span class="badtxt">' + money(-m.profit) + ' loss per item</span>') + '</div></div></div>';
+}
+/* Shows the suggested price, your own price and the shop price for what you just typed, live. */
+function profitCalc() {
+  var out = $('profitOut'), r = CUR && CUR.r, p = priceVal(), n = Math.max(1, parseInt($('countIn').value, 10) || 1), g = pricing();
+  if (!(p > 0)) { out.innerHTML = ''; out.classList.add('hidden'); return; }
+  var each = p / n, s = suggestPrice(each, g.rate, g.minMargin), mine = moneyIn($('sellIn').value);
+  $('sellIn').placeholder = s ? 'Suggested ' + money(s.price) + ' (leave empty to use it)' : 'Leave empty to use the suggested price';
+  var shop = r && r.shop && r.shop.retail > 0 ? priceMath(r.shop.retail, each, g.rate) : null;
+  out.innerHTML = '<div class="by">Your cost ' + money(each) + ' each' + (g.rate ? ' · prices include ' + (Math.round(g.rate * 1000) / 10) + '% sales tax' : ' · no sales tax on this item') + '</div>' +
+    pmLine('💡 Suggested price', s, !mine) + (mine > 0 ? pmLine('✏️ Your price', priceMath(mine, each, g.rate), true) : '') + pmLine('🛒 In your shop now', shop) +
+    (r && r.shop && r.shop.cost > 0 && each < r.shop.cost - 0.004 ? '<div class="by good">' + money(r.shop.cost - each) + ' cheaper than your current cost (' + money(r.shop.cost) + ').</div>' : '');
+  out.classList.remove('hidden');
+}
+$('sellIn').addEventListener('input', profitCalc);
 function stepCount(d) { var n = Math.max(1, (parseInt($('countIn').value, 10) || 1) + d); $('countIn').value = n; eachCalc(); }
 function priceVal() { return Math.round((parseFloat(String($('priceIn').value).replace(/[$,\s]/g, '')) || 0) * 100) / 100; }
 function eachCalc() { var n = parseInt($('countIn').value, 10) || 1, p = priceVal(); $('eachOut').textContent = n > 1 && p > 0 ? money(p / n) + ' each' : ''; saleCalc(); profitCalc(); }
@@ -562,6 +589,8 @@ function savePrice() {
   var job = { bc: CUR.code, nm: nm, sz: sz, st: st, pr: p.toFixed(2), ct: n, key: CUR.key, label: (nm || CUR.code) + ' at ' + st + ' ' + money(p) + (sl ? ' (sale)' : '') };
   if (sl) { job.sl = '1'; if (rg) job.rg = rg.toFixed(2); if (en) job.en = en; }
   if (nt) job.nt = nt;
+  var sp = moneyIn($('sellIn').value);
+  if (sp > 0 && sp.toFixed(2) !== (CUR.sell0 || '')) job.sp = sp.toFixed(2);   // your own selling price, kept for this barcode
   queueAdd(job);
   toast('Saving: ' + job.label);
   CUR = null; $('panel').classList.add('hidden'); status('');
@@ -579,13 +608,13 @@ var sending = false;
 function sendQueue() {
   if (sending || !PIN) return; var q = queueGet(); if (!q.length) return;
   sending = true; var j = q[0];
-  api('save', { bc: j.bc, nm: j.nm, sz: j.sz, st: j.st, pr: j.pr, ct: j.ct, key: j.key, sl: j.sl, rg: j.rg, en: j.en, nt: j.nt }).then(function () {
+  api('save', { bc: j.bc, nm: j.nm, sz: j.sz, st: j.st, pr: j.pr, ct: j.ct, key: j.key, sl: j.sl, rg: j.rg, en: j.en, nt: j.nt, sp: j.sp }).then(function () {
     sending = false; queueSet(queueGet().filter(function (x) { return x.key !== j.key; }));
     toast('✔ Saved: ' + j.label); sendQueue();
   }).catch(function (e) {
     sending = false;
     if (!PIN) return needPin(e.message);
-    if (/store|price|barcode|name|sale|date/i.test(e.message) && !/signal|answer|reach/i.test(e.message)) { queueSet(queueGet().filter(function (x) { return x.key !== j.key; })); toast('✖ Not saved (' + j.label + '): ' + e.message); sendQueue(); return; }
+    if (/store|price|barcode|name|sale|date|selling/i.test(e.message) && !/signal|answer|reach/i.test(e.message)) { queueSet(queueGet().filter(function (x) { return x.key !== j.key; })); toast('✖ Not saved (' + j.label + '): ' + e.message); sendQueue(); return; }
     showQueue();
   });
 }
@@ -626,6 +655,18 @@ function editForm(x) {
     '<div class="row" style="margin-top:10px"><button class="ghost" style="flex:0 0 auto" data-cancel="1">Cancel</button><button class="alt" style="flex:1" data-save="' + esc(x.id) + '">Save changes</button></div>' +
     '<div class="by" id="efMsg" style="margin-top:6px"></div></div>';
 }
+function listPricing(p) {
+  var g = p.pricing; if (!g || !g.cost) return '';
+  return '<div class="pbox"><div class="by">Cost ' + money(g.cost) + ' each at ' + esc(g.costStore) + (g.rate ? ' · tax included' : '') + '</div>' +
+    pmLine('💡 Suggested price', g.suggest, !g.sell) + pmLine('✏️ Your price', g.sell, true) + pmLine('🛒 In your shop now', g.shop) +
+    '<button class="ghost sm" style="margin-top:6px" data-sell="' + esc(p.code) + '">✏️ ' + (g.sell ? 'Change my price' : 'Set my price') + '</button></div>';
+}
+function setSell(code) {
+  var p = LIST.filter(function (x) { return x.code === code; })[0], g = p && p.pricing;
+  var v = prompt('Your selling price, tax included (leave empty to use the suggested price):', g && g.sell ? g.sell.price.toFixed(2) : (g && g.suggest ? g.suggest.price.toFixed(2) : ''));
+  if (v === null) return;
+  api('sell', { bc: code, sp: v.trim() }).then(function () { toast('✔ Price saved'); return loadList(); }).catch(function (e) { if (!PIN) return needPin(e.message); toast(e.message); });
+}
 function saveEdit(id) {
   var p = moneyIn($('efPr').value), n = Math.max(1, parseInt($('efCt').value, 10) || 1), st = $('efSt').value.trim(), sl = $('efSl').checked;
   var rg = sl ? moneyIn($('efRg').value) : 0, en = sl ? $('efEn').value : '';
@@ -651,14 +692,16 @@ function renderList() {
   var items = LIST.filter(function (p) { return !q || (p.name + ' ' + p.size + ' ' + p.code + ' ' + p.byStore.map(function (s) { return s.store; }).join(' ')).toLowerCase().indexOf(q) >= 0; });
   if (!items.length) { $('listOut').innerHTML = '<p class="by">' + (LIST.length ? 'Nothing matches.' : 'No prices yet. Scan an item and save its price.') + '</p>'; return; }
   $('listOut').innerHTML = items.map(function (p) {
-    var b = p.best || {}, r = p.bestRegular, shown = {};
+    var b = p.best || {}, r = p.bestRegular, g = p.pricing, shown = {};
     p.byStore.forEach(function (x) { shown[x.id] = 1; });
     var older = (p.all || []).filter(function (x) { return !shown[x.id]; });
     var editing = EDIT && (p.all || []).some(function (x) { return x.id === EDIT; }), editOld = EDIT && older.some(function (x) { return x.id === EDIT; });
     return '<details' + (editing ? ' open' : '') + '><summary>' + (p.photo ? '<img src="' + esc(p.photo) + '" alt="">' : '<span style="font-size:30px">🏷️</span>') +
       '<div style="flex:1;min-width:0"><b>' + esc(p.name) + '</b>' + (p.size ? ' <span class="by">' + esc(p.size) + '</span>' : '') + (p.onSale ? '<span class="sale">SALE</span>' : '') +
       '<div class="by">Cheapest: <b>' + esc(b.store || '') + '</b> ' + money(b.price) + (b.count > 1 ? ' for ' + b.count + ' (' + money(b.each) + ' each)' : '') + (b.perUnit ? ' · ' + esc(b.perUnit) : '') + '</div>' +
-      (r && b.sale && !b.ended ? '<div class="by">Best regular price: <b>' + esc(r.store) + '</b> ' + money(r.each) + ' each</div>' : '') + '</div></summary>' +
+      (r && b.sale && !b.ended ? '<div class="by">Best regular price: <b>' + esc(r.store) + '</b> ' + money(r.each) + ' each</div>' : '') +
+      (g && (g.sell || g.suggest) ? '<div class="by">💡 Sell for <b>' + money((g.sell || g.suggest).price) + '</b> · ' + (g.sell || g.suggest).margin + '% margin' + (g.sell ? ' (your price)' : '') + '</div>' : '') + '</div></summary>' +
+      listPricing(p) +
       '<div class="hist">' + p.byStore.map(function (x, i) { return priceRow(x, i, p); }).join('') + '</div>' +
       (older.length ? '<details style="border:0;padding:0;margin:6px 0 0"' + (editOld ? ' open' : '') + '><summary class="by" style="display:block">Older prices (' + older.length + ')</summary><div class="hist">' +
         older.map(function (x) { return priceRow(x, 1, p); }).join('') + '</div></details>' : '') +
@@ -667,6 +710,7 @@ function renderList() {
 }
 $('listOut').addEventListener('click', function (e) {
   var ed = e.target.closest('[data-edit]'); if (ed) { e.preventDefault(); EDIT = ed.getAttribute('data-edit'); renderList(); var f = $('ef'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  var se = e.target.closest('[data-sell]'); if (se) { e.preventDefault(); setSell(se.getAttribute('data-sell')); return; }
   var sv = e.target.closest('[data-save]'); if (sv) { e.preventDefault(); saveEdit(sv.getAttribute('data-save')); return; }
   if (e.target.closest('[data-cancel]')) { e.preventDefault(); EDIT = ''; renderList(); return; }
   var b = e.target.closest('[data-del]'); if (!b) return;
