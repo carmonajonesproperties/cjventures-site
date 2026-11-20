@@ -57,6 +57,15 @@ label{display:block;font-weight:700;font-size:14px;margin:12px 0 6px}
 .list summary{list-style:none;display:flex;gap:10px;align-items:center;cursor:pointer}
 .list summary::-webkit-details-marker{display:none}
 .list summary img{width:44px;height:44px;object-fit:contain;border-radius:8px;background:#fff;flex-shrink:0}
+.tog{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;margin:14px 0 4px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}
+.tog input{width:22px;height:22px;margin:0;accent-color:var(--bad)}
+.salebox{border-left:4px solid #e74c3c;padding-left:10px;margin-top:4px}
+.sale{background:#ffe1e1;color:#b3261e;border-radius:6px;padding:1px 6px;font-size:12px;font-weight:800;margin-left:6px;white-space:nowrap}
+.ended{background:#eee;color:#666;border-radius:6px;padding:1px 6px;font-size:12px;font-weight:700;margin-left:6px;white-space:nowrap}
+.good{color:var(--brand2);font-weight:700}.badtxt{color:var(--bad);font-weight:700}
+.tabs{display:flex;gap:6px;margin:0 0 8px}.tabs button{flex:1}
+.editf{background:#fffaf5;border:1px solid var(--line);border-radius:12px;padding:10px;margin:6px 0}
+.editf label{margin:8px 0 4px}.editf input{padding:9px}
 .hidden{display:none!important}
 </style>
 </head>
@@ -117,7 +126,8 @@ label{display:block;font-weight:700;font-size:14px;margin:12px 0 6px}
       <div class="chips" id="chips"></div>
 
       <label for="priceIn">Total price</label>
-      <input id="priceIn" class="money" inputmode="decimal" placeholder="$0.00" autocomplete="off" enterkeyhint="done">
+      <input id="priceIn" class="money cash" inputmode="decimal" placeholder="$0.00" autocomplete="off" enterkeyhint="done">
+      <div class="by">No need for the dot: type 499 for $4.99.</div>
 
       <label for="countIn">How many in the pack</label>
       <div class="qty">
@@ -126,6 +136,34 @@ label{display:block;font-weight:700;font-size:14px;margin:12px 0 6px}
         <button type="button" class="ghost" onclick="stepCount(1)">+</button>
         <span class="by" id="eachOut"></span>
       </div>
+      <div class="by" id="packHint"></div>
+
+      <label class="tog"><input type="checkbox" id="saleIn" onchange="saleToggle()"> 🏷️ This is a sale price</label>
+      <div id="saleBox" class="salebox hidden">
+        <label for="regIn">Regular price (optional)</label>
+        <input id="regIn" class="cash" inputmode="decimal" placeholder="$0.00" autocomplete="off" oninput="saleCalc()">
+        <div class="by" id="regHint"></div>
+        <label for="endsIn">Sale ends (optional)</label>
+        <input id="endsIn" type="date">
+        <div class="chips" id="endChips">
+          <button type="button" class="chip" data-d="7">In 1 week</button>
+          <button type="button" class="chip" data-d="14">In 2 weeks</button>
+          <button type="button" class="chip" data-d="eom">End of month</button>
+          <button type="button" class="chip" data-d="">No end date</button>
+        </div>
+        <div id="saleOut" style="margin-top:8px"></div>
+      </div>
+
+      <label for="noteIn">Note (optional)</label>
+      <input id="noteIn" placeholder="e.g. Limit 2, member price" autocomplete="off" maxlength="120">
+      <div class="chips" id="noteChips">
+        <button type="button" class="chip" data-n="Limit 2">Limit 2</button>
+        <button type="button" class="chip" data-n="Member price">Member price</button>
+        <button type="button" class="chip" data-n="Coupon">Coupon</button>
+        <button type="button" class="chip" data-n="Clearance">Clearance</button>
+        <button type="button" class="chip" data-n="Online price">Online price</button>
+      </div>
+      <div id="profitOut" class="by" style="margin-top:10px"></div>
 
       <div class="row" style="margin-top:14px">
         <button class="ghost" style="flex:0 0 auto" onclick="skipItem()">Skip</button>
@@ -137,6 +175,7 @@ label{display:block;font-weight:700;font-size:14px;margin:12px 0 6px}
 
   <!-- PRICE LIST -->
   <div id="listView" class="hidden">
+    <div class="tabs"><button id="tabAll" class="sm" onclick="listTab('all')">All items</button><button id="tabSale" class="ghost sm" onclick="listTab('sale')">🏷️ On sale now</button></div>
     <input id="listQ" placeholder="Search items or stores" oninput="renderList()">
     <div id="listOut" class="list"><p class="by">Loading…</p></div>
   </div>
@@ -158,6 +197,27 @@ function show(view) {
   $('listBtn').classList.toggle('hidden', view !== 'scanView');
   $('scanBackBtn').classList.toggle('hidden', view !== 'listView');
 }
+
+/* ---------- prices type like a cash register: 4, 9, 9 shows $4.99. Type a dot yourself and it keeps exactly what you type. ---------- */
+function cashFix(el) {
+  var v = String(el.value || '');
+  if (!v.trim()) { el._manual = false; return; }
+  if (el._manual) return;
+  var dots = (v.match(/[.,]/g) || []).length;
+  if (dots >= 2 || /[.,]$/.test(v) || (dots === 1 && !el._cash)) {     // you typed a dot (or pasted a price with one): keep it
+    if (el._cash && /[.,]$/.test(v)) el.value = String(Number(v.slice(0, -1).replace(/\D/g, '') || '0')) + '.'; // 0.04 then a dot = 4.
+    el._manual = true; el._cash = false; return;
+  }
+  var d = v.replace(/\D/g, '').replace(/^0+/, '').slice(0, 7);
+  el._raw = d; el._cash = true;
+  el.value = d ? (Number(d) / 100).toFixed(2) : '';
+}
+document.addEventListener('input', function (e) { if (e.target && e.target.classList && e.target.classList.contains('cash')) cashFix(e.target); }, true);
+document.addEventListener('focusin', function (e) {
+  var el = e.target; if (!el || !el.classList || !el.classList.contains('cash')) return;
+  el._manual = false; el._cash = !!el.value; el._raw = String(el.value || '').replace(/\D/g, '').replace(/^0+/, '');
+  setTimeout(function () { try { el.select(); } catch (x) { } }, 0);   // typing replaces a filled-in price
+}, true);
 
 /* ---------- talking to the app (JSONP: a script tag, which works from any website) ---------- */
 var PIN = store('cjp_pin') || '', jn = 0;
@@ -358,7 +418,7 @@ function got(code) {
   fillPanel(null, true);
   api('look', { bc: code }).then(function (r) {
     if (!CUR || CUR.code !== code) return;
-    STORES = r.stores || STORES; CUR.item = r.item;
+    STORES = r.stores || STORES; CUR.item = r.item; CUR.r = r;
     status(r.item ? '' : 'Not found online. Type its name once and the app will remember it.', r.item ? '' : 'bad');
     fillPanel(r, false);
   }).catch(function (e) {
@@ -386,16 +446,23 @@ function fillPanel(r, loading) {
   var h = $('hist'), hs = r && r.history;
   if (hs && hs.byStore && hs.byStore.length) {
     h.innerHTML = '<div class="by" style="font-weight:700;margin-bottom:2px">Prices you have seen</div>' + hs.byStore.map(function (x, i) {
-      return '<div class="hrow"><div><b>' + esc(x.store) + '</b>' + (i === 0 && hs.byStore.length > 1 ? '<span class="best">Cheapest</span>' : '') + '<div class="by">' + esc(x.date) + '</div></div>' +
-        '<div style="text-align:right"><b>' + money(x.price) + '</b>' + (x.count > 1 ? '<div class="by">' + x.count + ' for ' + money(x.price) + ' · ' + money(x.each) + ' each</div>' : '') + '</div></div>';
-    }).join('');
+      return '<div class="hrow"><div><b>' + esc(x.store) + '</b>' + (i === 0 && hs.byStore.length > 1 ? '<span class="best">Cheapest</span>' : '') + saleTag(x) + '<div class="by">' + esc(x.date) + (x.note ? ' · ' + esc(x.note) : '') + '</div></div>' +
+        '<div style="text-align:right"><b>' + money(x.price) + '</b>' + (x.count > 1 ? '<div class="by">' + x.count + ' for ' + money(x.price) + ' · ' + money(x.each) + ' each</div>' : '') +
+        (x.perUnit ? '<div class="by">' + esc(x.perUnit) + '</div>' : '') + (x.regular ? '<div class="by">reg. ' + money(x.regular) + '</div>' : '') + '</div></div>';
+    }).join('') + (hs.bestRegular && hs.best && hs.best.sale && !hs.best.ended ? '<div class="by" style="margin-top:4px">Best regular price: <b>' + esc(hs.bestRegular.store) + '</b> ' + money(hs.bestRegular.each) + ' each</div>' : '');
     h.classList.remove('hidden');
   } else h.classList.add('hidden');
   if (r && r.checkOk === false) status('Heads up: that barcode looks misread. Scan it again if the name is wrong.', 'bad');
   var last = store('cjp_store') || '';
   if (!$('storeIn').value) $('storeIn').value = last;
   renderStores();
-  $('priceIn').value = ''; $('countIn').value = '1'; eachCalc();
+  $('priceIn').value = '';
+  var pk = r && r.pack;
+  $('countIn').value = pk && pk.n > 0 ? String(pk.n) : '1';
+  $('packHint').textContent = pk && pk.n > 1 ? (pk.from === 'last time' ? 'Pack size: ' + pk.n + ', same as last time. Change it if this pack is different.' : 'Pack size: ' + pk.n + ', read from the name. Change it if that is wrong.') : '';
+  $('saleIn').checked = false; $('saleBox').classList.add('hidden'); $('regIn').value = ''; $('endsIn').value = ''; $('regHint').textContent = ''; $('saleOut').innerHTML = '';
+  $('noteIn').value = ''; markNote();
+  eachCalc();
   $('codeOut').textContent = 'Barcode ' + (CUR ? CUR.code : '');
   $('saveBtn').disabled = !!loading;
   if (!loading) setTimeout(function () { (unknown ? $('nameIn') : (!$('storeIn').value ? $('storeIn') : $('priceIn'))).focus(); }, 150);
@@ -413,9 +480,66 @@ $('chips').addEventListener('click', function (e) {
   $('storeIn').value = b.getAttribute('data-s'); markChips(); $('priceIn').focus();
 });
 function markChips() { var v = $('storeIn').value.trim().toLowerCase(); Array.prototype.forEach.call($('chips').children, function (b) { b.classList.toggle('on', b.getAttribute('data-s').toLowerCase() === v); }); }
+function saleTag(x) {
+  if (!x || !x.sale) return '';
+  if (x.ended) return '<span class="ended">sale ended' + (x.endsNice ? ' ' + esc(x.endsNice) : '') + '</span>';
+  return '<span class="sale">SALE' + (x.endsNice ? ' until ' + esc(x.endsNice) : '') + '</span>';
+}
+function ymd(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+function todayYmd() { return ymd(new Date()); }
+function moneyIn(v) { return Math.round((parseFloat(String(v || '').replace(/[$,\s]/g, '')) || 0) * 100) / 100; }
+/* The regular price you last saw for this item at this store and pack size, to start from when you mark a sale. */
+function guessRegular() {
+  var r = CUR && CUR.r, all = r && r.history && r.history.all; if (!all) return null;
+  var st = $('storeIn').value.trim().toLowerCase(), n = Math.max(1, parseInt($('countIn').value, 10) || 1);
+  for (var i = 0; i < all.length; i++) {
+    var x = all[i]; if (x.store.toLowerCase() !== st || x.count !== n) continue;
+    if (!x.sale) return { price: x.price, date: x.date };
+    if (x.regular) return { price: x.regular, date: x.date };
+  }
+  return null;
+}
+function saleToggle() {
+  var on = $('saleIn').checked;
+  $('saleBox').classList.toggle('hidden', !on);
+  $('regHint').textContent = '';
+  if (on && !$('regIn').value) { var g = guessRegular(); if (g) { $('regIn').value = g.price.toFixed(2); $('regHint').textContent = 'Filled in from what you paid here on ' + g.date + '. Change it if it is different.'; } }
+  $('endsIn').min = todayYmd();
+  saleCalc();
+}
+function saleCalc() {
+  var out = $('saleOut'); if (!out) return;
+  var p = priceVal(), reg = moneyIn($('regIn').value), n = Math.max(1, parseInt($('countIn').value, 10) || 1);
+  if (!$('saleIn').checked || !(reg > 0) || !(p > 0)) { out.innerHTML = ''; return; }
+  if (reg <= p) { out.innerHTML = '<span class="badtxt">The regular price should be more than the sale price.</span>'; return; }
+  out.innerHTML = '<span class="good">You save ' + money(reg - p) + ' (' + Math.round((reg - p) / reg * 100) + '%)' + (n > 1 ? ', ' + money((reg - p) / n) + ' per item' : '') + '.</span>';
+}
+$('endChips').addEventListener('click', function (e) {
+  var b = e.target.closest('.chip'); if (!b) return;
+  var d = b.getAttribute('data-d'), t = new Date();
+  if (d === '') $('endsIn').value = '';
+  else if (d === 'eom') $('endsIn').value = ymd(new Date(t.getFullYear(), t.getMonth() + 1, 0));
+  else { t.setDate(t.getDate() + Number(d)); $('endsIn').value = ymd(t); }
+});
+$('noteChips').addEventListener('click', function (e) {
+  var b = e.target.closest('.chip'); if (!b) return;
+  var v = b.getAttribute('data-n'), cur = $('noteIn').value.trim(), parts = cur ? cur.split(/\s*,\s*/) : [];
+  var i = parts.indexOf(v); if (i >= 0) parts.splice(i, 1); else parts.push(v);
+  $('noteIn').value = parts.join(', '); markNote();
+});
+function markNote() { var parts = $('noteIn').value.split(/\s*,\s*/); Array.prototype.forEach.call($('noteChips').children, function (b) { b.classList.toggle('on', parts.indexOf(b.getAttribute('data-n')) >= 0); }); }
+$('noteIn').addEventListener('input', markNote);
+/* Profit per item at the price you sell it for in the snack shop. */
+function profitCalc() {
+  var out = $('profitOut'), r = CUR && CUR.r, p = priceVal(), n = Math.max(1, parseInt($('countIn').value, 10) || 1);
+  if (!r || !r.shop || !(r.shop.retail > 0) || !(p > 0)) { out.innerHTML = ''; return; }
+  var each = p / n, pr = r.shop.retail - each;
+  out.innerHTML = '💵 You sell it for ' + money(r.shop.retail) + ': ' + (pr > 0 ? '<span class="good">' + money(pr) + ' profit per item (' + Math.round(pr / r.shop.retail * 100) + '%)</span>' : '<span class="badtxt">' + money(-pr) + ' loss per item</span>') +
+    (r.shop.cost > 0 ? ' · your cost now ' + money(r.shop.cost) + ' each' + (each < r.shop.cost - 0.004 ? ', <span class="good">this is ' + money(r.shop.cost - each) + ' cheaper</span>' : '') : '');
+}
 function stepCount(d) { var n = Math.max(1, (parseInt($('countIn').value, 10) || 1) + d); $('countIn').value = n; eachCalc(); }
 function priceVal() { return Math.round((parseFloat(String($('priceIn').value).replace(/[$,\s]/g, '')) || 0) * 100) / 100; }
-function eachCalc() { var n = parseInt($('countIn').value, 10) || 1, p = priceVal(); $('eachOut').textContent = n > 1 && p > 0 ? money(p / n) + ' each' : ''; }
+function eachCalc() { var n = parseInt($('countIn').value, 10) || 1, p = priceVal(); $('eachOut').textContent = n > 1 && p > 0 ? money(p / n) + ' each' : ''; saleCalc(); profitCalc(); }
 $('priceIn').addEventListener('input', eachCalc);
 $('priceIn').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); savePrice(); } });
 $('nameIn').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('storeIn').value ? $('priceIn').focus() : $('storeIn').focus(); } });
@@ -430,9 +554,14 @@ function savePrice() {
   if (!CUR.item && !nm) { $('nameIn').focus(); return toast('Type what it is first.'); }
   if (!st) { $('storeIn').focus(); return toast('Which store?'); }
   if (!(p > 0)) { $('priceIn').focus(); return toast('Type the price.'); }
+  var sl = $('saleIn').checked, rg = sl ? moneyIn($('regIn').value) : 0, en = sl ? $('endsIn').value : '', nt = $('noteIn').value.trim();
+  if (sl && rg && rg <= p) { $('regIn').focus(); return toast('The regular price should be more than the sale price.'); }
+  if (en && en < todayYmd()) { $('endsIn').focus(); return toast('That sale end date already passed.'); }
   store('cjp_store', st);
   if (STORES.indexOf(st) < 0) STORES.unshift(st);
-  var job = { bc: CUR.code, nm: nm, sz: sz, st: st, pr: p.toFixed(2), ct: n, key: CUR.key, label: (nm || CUR.code) + ' at ' + st + ' ' + money(p) };
+  var job = { bc: CUR.code, nm: nm, sz: sz, st: st, pr: p.toFixed(2), ct: n, key: CUR.key, label: (nm || CUR.code) + ' at ' + st + ' ' + money(p) + (sl ? ' (sale)' : '') };
+  if (sl) { job.sl = '1'; if (rg) job.rg = rg.toFixed(2); if (en) job.en = en; }
+  if (nt) job.nt = nt;
   queueAdd(job);
   toast('Saving: ' + job.label);
   CUR = null; $('panel').classList.add('hidden'); status('');
@@ -450,48 +579,100 @@ var sending = false;
 function sendQueue() {
   if (sending || !PIN) return; var q = queueGet(); if (!q.length) return;
   sending = true; var j = q[0];
-  api('save', { bc: j.bc, nm: j.nm, sz: j.sz, st: j.st, pr: j.pr, ct: j.ct, key: j.key }).then(function () {
+  api('save', { bc: j.bc, nm: j.nm, sz: j.sz, st: j.st, pr: j.pr, ct: j.ct, key: j.key, sl: j.sl, rg: j.rg, en: j.en, nt: j.nt }).then(function () {
     sending = false; queueSet(queueGet().filter(function (x) { return x.key !== j.key; }));
     toast('✔ Saved: ' + j.label); sendQueue();
   }).catch(function (e) {
     sending = false;
     if (!PIN) return needPin(e.message);
-    if (/store|price|barcode|name/i.test(e.message) && !/signal|answer|reach/i.test(e.message)) { queueSet(queueGet().filter(function (x) { return x.key !== j.key; })); toast('✖ Not saved (' + j.label + '): ' + e.message); sendQueue(); return; }
+    if (/store|price|barcode|name|sale|date/i.test(e.message) && !/signal|answer|reach/i.test(e.message)) { queueSet(queueGet().filter(function (x) { return x.key !== j.key; })); toast('✖ Not saved (' + j.label + '): ' + e.message); sendQueue(); return; }
     showQueue();
   });
 }
 window.addEventListener('online', sendQueue);
 setInterval(sendQueue, 15000);
 
-/* ---------- price list ---------- */
-var LIST = [];
+/* ---------- price list (tap Edit on any price to fix it later) ---------- */
+var LIST = [], SALES = [], TAB = 'all', EDIT = '';
 function openList() {
-  pauseScan(); stopCamera(); show('listView'); $('listOut').innerHTML = '<p class="by">Loading…</p>';
-  api('list').then(function (r) { LIST = r.items || []; STORES = r.stores || STORES; renderList(); })
+  pauseScan(); stopCamera(); show('listView'); EDIT = ''; $('listOut').innerHTML = '<p class="by">Loading…</p>';
+  loadList();
+}
+function loadList() {
+  return api('list').then(function (r) { LIST = r.items || []; SALES = r.sales || []; STORES = r.stores || STORES; renderList(); })
     .catch(function (e) { if (!PIN) return needPin(e.message); $('listOut').innerHTML = '<p class="by">' + esc(e.message) + '</p>'; });
 }
 function closeList() { show('scanView'); if ($('panel').classList.contains('hidden')) startCamera(); else $('camStart').classList.remove('hidden'); }
+function listTab(t) { TAB = t; $('tabAll').className = 'sm' + (t === 'all' ? '' : ' ghost'); $('tabSale').className = 'sm' + (t === 'sale' ? '' : ' ghost'); renderList(); }
+function priceRow(x, i, p) {
+  var line = '<div class="hrow"><div style="min-width:0"><b>' + esc(x.store) + '</b>' + (i === 0 && p.byStore.length > 1 ? '<span class="best">Cheapest</span>' : '') + saleTag(x) +
+    '<div class="by">' + esc(x.date) + (x.perUnit ? ' · ' + esc(x.perUnit) : '') + (x.note ? ' · ' + esc(x.note) : '') + '</div>' +
+    (x.regular ? '<div class="by">reg. ' + money(x.regular) + ' · save ' + money(x.save) + ' (' + x.pct + '%)</div>' : '') +
+    (x.ended && x.regEach ? '<div class="by">Now about ' + money(x.regEach) + ' each at the regular price</div>' : '') + '</div>' +
+    '<div style="text-align:right;white-space:nowrap"><b>' + money(x.price) + '</b>' + (x.count > 1 ? '<div class="by">' + x.count + ' · ' + money(x.each) + ' each</div>' : '') +
+    '<div style="margin-top:4px"><button class="ghost sm" data-edit="' + esc(x.id) + '">✏️ Edit</button> <button class="ghost sm" data-del="' + esc(x.id) + '">✕</button></div></div></div>';
+  return line + (EDIT === x.id ? editForm(x) : '');
+}
+function editForm(x) {
+  return '<div class="editf" id="ef">' +
+    '<label>Store</label><input id="efSt" value="' + esc(x.store) + '" list="storeList">' +
+    '<label>Total price</label><input id="efPr" class="cash" inputmode="decimal" value="' + esc(Number(x.price).toFixed(2)) + '">' +
+    '<label>How many in the pack</label><input id="efCt" inputmode="numeric" value="' + esc(x.count) + '">' +
+    '<label class="tog" style="margin-top:10px"><input type="checkbox" id="efSl"' + (x.sale ? ' checked' : '') + ' onchange="$(\'efSale\').classList.toggle(\'hidden\',!this.checked)"> 🏷️ Sale price</label>' +
+    '<div id="efSale" class="salebox' + (x.sale ? '' : ' hidden') + '">' +
+    '<label>Regular price (optional)</label><input id="efRg" class="cash" inputmode="decimal" value="' + (x.regular ? esc(Number(x.regular).toFixed(2)) : '') + '">' +
+    '<label>Sale ends (optional)</label><input id="efEn" type="date" value="' + esc(x.ends || '') + '"></div>' +
+    '<label>Note</label><input id="efNt" maxlength="120" value="' + esc(x.note || '') + '">' +
+    '<div class="row" style="margin-top:10px"><button class="ghost" style="flex:0 0 auto" data-cancel="1">Cancel</button><button class="alt" style="flex:1" data-save="' + esc(x.id) + '">Save changes</button></div>' +
+    '<div class="by" id="efMsg" style="margin-top:6px"></div></div>';
+}
+function saveEdit(id) {
+  var p = moneyIn($('efPr').value), n = Math.max(1, parseInt($('efCt').value, 10) || 1), st = $('efSt').value.trim(), sl = $('efSl').checked;
+  var rg = sl ? moneyIn($('efRg').value) : 0, en = sl ? $('efEn').value : '';
+  if (!st) return ($('efMsg').textContent = 'Which store?');
+  if (!(p > 0)) return ($('efMsg').textContent = 'Type the price.');
+  if (rg && rg <= p) return ($('efMsg').textContent = 'The regular price should be more than the sale price.');
+  $('efMsg').textContent = 'Saving…';
+  api('edit', { id: id, st: st, pr: p.toFixed(2), ct: n, sl: sl ? '1' : '0', rg: rg ? rg.toFixed(2) : '', en: en, nt: $('efNt').value.trim() })
+    .then(function () { EDIT = ''; toast('✔ Changes saved'); return loadList(); })
+    .catch(function (e) { if (!PIN) return needPin(e.message); var m = $('efMsg'); if (m) m.textContent = e.message; });
+}
 function renderList() {
   var q = $('listQ').value.trim().toLowerCase();
+  if (TAB === 'sale') {
+    var s = SALES.filter(function (x) { return !q || (x.name + ' ' + x.store).toLowerCase().indexOf(q) >= 0; });
+    $('listOut').innerHTML = s.length ? s.map(function (x) {
+      return '<div class="card" style="margin:8px 0"><b>' + esc(x.name) + '</b><div class="hrow"><div><b>' + esc(x.store) + '</b>' + saleTag({ sale: true, endsNice: x.endsNice }) +
+        (x.regular ? '<div class="by">reg. ' + money(x.regular) + ' · save ' + money(x.save) + ' (' + x.pct + '%)</div>' : '') + '</div>' +
+        '<div style="text-align:right"><b>' + money(x.price) + '</b>' + (x.count > 1 ? '<div class="by">' + money(x.each) + ' each</div>' : '') + '</div></div></div>';
+    }).join('') : '<p class="by">No sales on right now. Tick "This is a sale price" when you save one and it shows here until the sale ends.</p>';
+    return;
+  }
   var items = LIST.filter(function (p) { return !q || (p.name + ' ' + p.size + ' ' + p.code + ' ' + p.byStore.map(function (s) { return s.store; }).join(' ')).toLowerCase().indexOf(q) >= 0; });
   if (!items.length) { $('listOut').innerHTML = '<p class="by">' + (LIST.length ? 'Nothing matches.' : 'No prices yet. Scan an item and save its price.') + '</p>'; return; }
   $('listOut').innerHTML = items.map(function (p) {
-    var b = p.best || {};
-    return '<details><summary>' + (p.photo ? '<img src="' + esc(p.photo) + '" alt="">' : '<span style="font-size:30px">🏷️</span>') +
-      '<div style="flex:1;min-width:0"><b>' + esc(p.name) + '</b>' + (p.size ? ' <span class="by">' + esc(p.size) + '</span>' : '') +
-      '<div class="by">Cheapest: <b>' + esc(b.store || '') + '</b> ' + money(b.price) + (b.count > 1 ? ' for ' + b.count + ' (' + money(b.each) + ' each)' : '') + '</div></div></summary>' +
-      '<div class="hist">' + p.byStore.map(function (x, i) {
-        return '<div class="hrow"><div><b>' + esc(x.store) + '</b>' + (i === 0 && p.byStore.length > 1 ? '<span class="best">Cheapest</span>' : '') + '<div class="by">' + esc(x.date) + '</div></div>' +
-          '<div style="text-align:right"><b>' + money(x.price) + '</b>' + (x.count > 1 ? '<div class="by">' + money(x.each) + ' each</div>' : '') +
-          '<button class="ghost sm" style="margin-top:4px" data-del="' + esc(x.id) + '">✕</button></div></div>';
-      }).join('') + '</div>' +
+    var b = p.best || {}, r = p.bestRegular, shown = {};
+    p.byStore.forEach(function (x) { shown[x.id] = 1; });
+    var older = (p.all || []).filter(function (x) { return !shown[x.id]; });
+    var editing = EDIT && (p.all || []).some(function (x) { return x.id === EDIT; }), editOld = EDIT && older.some(function (x) { return x.id === EDIT; });
+    return '<details' + (editing ? ' open' : '') + '><summary>' + (p.photo ? '<img src="' + esc(p.photo) + '" alt="">' : '<span style="font-size:30px">🏷️</span>') +
+      '<div style="flex:1;min-width:0"><b>' + esc(p.name) + '</b>' + (p.size ? ' <span class="by">' + esc(p.size) + '</span>' : '') + (p.onSale ? '<span class="sale">SALE</span>' : '') +
+      '<div class="by">Cheapest: <b>' + esc(b.store || '') + '</b> ' + money(b.price) + (b.count > 1 ? ' for ' + b.count + ' (' + money(b.each) + ' each)' : '') + (b.perUnit ? ' · ' + esc(b.perUnit) : '') + '</div>' +
+      (r && b.sale && !b.ended ? '<div class="by">Best regular price: <b>' + esc(r.store) + '</b> ' + money(r.each) + ' each</div>' : '') + '</div></summary>' +
+      '<div class="hist">' + p.byStore.map(function (x, i) { return priceRow(x, i, p); }).join('') + '</div>' +
+      (older.length ? '<details style="border:0;padding:0;margin:6px 0 0"' + (editOld ? ' open' : '') + '><summary class="by" style="display:block">Older prices (' + older.length + ')</summary><div class="hist">' +
+        older.map(function (x) { return priceRow(x, 1, p); }).join('') + '</div></details>' : '') +
       '<div class="by" style="margin-top:6px">Barcode ' + esc(p.code) + ' · ' + p.n + ' price' + (p.n === 1 ? '' : 's') + ' logged</div></details>';
   }).join('');
 }
 $('listOut').addEventListener('click', function (e) {
+  var ed = e.target.closest('[data-edit]'); if (ed) { e.preventDefault(); EDIT = ed.getAttribute('data-edit'); renderList(); var f = $('ef'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  var sv = e.target.closest('[data-save]'); if (sv) { e.preventDefault(); saveEdit(sv.getAttribute('data-save')); return; }
+  if (e.target.closest('[data-cancel]')) { e.preventDefault(); EDIT = ''; renderList(); return; }
   var b = e.target.closest('[data-del]'); if (!b) return;
+  e.preventDefault();
   if (!confirm('Remove this price?')) return;
-  api('del', { id: b.getAttribute('data-del') }).then(openList).catch(function (er) { toast(er.message); });
+  api('del', { id: b.getAttribute('data-del') }).then(loadList).catch(function (er) { toast(er.message); });
 });
 
 /* ---------- start ---------- */
