@@ -5,47 +5,122 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Carmona Jones</title>
 <meta name="robots" content="noindex">
+<meta name="color-scheme" content="light dark">
 <script>
   // Old links to the bare domain carried order details (?page=track&id=...). Keep sending those to the
   // shop so customers still land on their order. Only a plain visit sees the app list below.
   if (location.search || location.hash) location.replace('/jerseys/' + location.search + location.hash);
 </script>
 <style>
-  :root { --bg:#f7f5f0; --ink:#1d2a2f; --muted:#5d6b70; --accent:#1f5f6b; --card:#fff; --line:#e3ded3; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); line-height:1.5; }
-  header, main, footer { max-width: 960px; margin: 0 auto; padding: 0 24px; }
-  header { padding-top: 56px; padding-bottom: 16px; }
-  .brand { font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
-  h1 { font-size: clamp(32px,6vw,48px); line-height: 1.1; margin: 10px 0 0; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; padding-top: 24px; }
-  .card { display:flex; align-items:center; gap:14px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; text-decoration:none; color:inherit; transition:transform .15s, box-shadow .15s; }
-  .icon { flex:0 0 46px; width:46px; height:46px; border-radius:12px; display:grid; place-items:center; color:var(--c); background:var(--t); }
-  .icon svg { width:26px; height:26px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  :root {
+    --bg:#f4f2ed; --ink:#1f2a30; --muted:#61707a; --accent:#1f5f6b; --card:#ffffff; --line:#e2ddd2; --hover:#faf8f4;
+    --shadow:0 1px 2px rgba(20,30,35,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14191c; --ink:#e7ecee; --muted:#9aa7ae; --accent:#7cc2cc; --card:#1c2327; --line:#2b353a; --hover:#222a2f; --shadow:none; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); line-height:1.45; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:980px; margin:0 auto; padding:0 16px; }
+  header { padding:36px 0 8px; }
+  .brand { font-size:13px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); font-weight:700; }
+  h1 { font-size:clamp(26px,5vw,38px); line-height:1.15; margin:6px 0 0; font-weight:700; }
+  section { margin-top:28px; }
+  .label { display:flex; align-items:center; gap:10px; margin:0 0 10px; font-size:13px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .label::after { content:""; flex:1; height:1px; background:var(--line); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  @media (min-width:640px) { .grid { grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; } }
+  .card { position:relative; display:flex; flex-direction:column; gap:10px; min-height:118px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; text-decoration:none; color:inherit; box-shadow:var(--shadow); transition:background .15s, border-color .15s, transform .15s; }
+  .card:hover { background:var(--hover); border-color:var(--c); transform:translateY(-1px); }
+  .card:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .icon { width:42px; height:42px; border-radius:11px; display:grid; place-items:center; color:var(--c); background:color-mix(in srgb, var(--c) 13%, var(--card)); }
+  @media (prefers-color-scheme: dark) { .icon { color:color-mix(in srgb, var(--c) 55%, #fff); background:color-mix(in srgb, var(--c) 26%, var(--card)); } }
+  .icon svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   .icon svg .fill { fill:currentColor; stroke:none; }
-  .card:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,.08); }
-  .card h2 { margin:0 0 4px; font-size:18px; }
-  .card p { margin:0; color:var(--muted); font-size:14px; }
-  footer { margin-top:48px; padding-top:20px; padding-bottom:40px; border-top:1px solid var(--line); color:var(--muted); font-size:14px; }
+  .card h3 { margin:0; font-size:16.5px; line-height:1.25; font-weight:650; }
+  .card p { margin:3px 0 0; color:var(--muted); font-size:13.5px; line-height:1.35; }
+  .tag { position:absolute; top:12px; right:12px; color:var(--muted); opacity:.75; }
+  .tag svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block; }
+  footer { margin-top:40px; padding:18px 0 36px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; display:flex; flex-wrap:wrap; gap:6px 18px; justify-content:space-between; }
+  .key { display:inline-flex; align-items:center; gap:5px; }
+  .key svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 </style>
 </head>
 <body>
+<!-- Small marks reused below: a lock for apps that ask for a PIN, an arrow for links that open another site. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="out" viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8M17 14v5H5V7h5"/></symbol>
+</svg>
+<div class="wrap">
 <header>
   <div class="brand">Carmona Jones</div>
   <h1>My apps</h1>
 </header>
 <main>
-  <section class="grid">
-    <a class="card" href="/jerseys/"><span class="icon" style="--c:#0b1f3a;--t:#e3e8f0" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 3 3 6l2 4 2-1v11h10V9l2 1 2-4-5-3c0 1.7-1.8 3-4 3S8 4.7 8 3Z"/><path d="M10 12h4M12 12v5"/></svg></span><div><h2>Jersey Shop</h2><p>Orders, inventory, supplier</p></div></a>
-    <a class="card" href="/TheTurnoverCrew/"><span class="icon" style="--c:#1f5f6b;--t:#e1eef0" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 9.5V20h14V9.5"/><path class="fill" d="M12 10.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9Z"/></svg></span><div><h2>The Turnover Crew</h2><p>Cleaners, snack shop, repairs</p></div></a>
-    <a class="card" href="/prices/"><span class="icon" style="--c:#c95f28;--t:#fbe9dd" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3"/><path d="M7 8v8M10 8v8M12.5 8v8M15 8v8M17 8v8"/></svg></span><div><h2>Snack Prices</h2><p>Scan snacks, look up prices</p></div></a>
-    <a class="card" href="/stessa/"><span class="icon" style="--c:#2e7d4f;--t:#e2f1e7" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M8.5 16v-4M12.5 16V8M16.5 16v-6"/></svg></span><div><h2>Stessa 2.0</h2><p>Rental income, expenses, receipts</p></div></a>
-    <a class="card" href="/buildandburn/"><span class="icon" style="--c:#b8452e;--t:#f8e3de" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.5 7.5v9M3.5 10v4M17.5 7.5v9M20.5 10v4M6.5 12h11"/></svg></span><div><h2>Build &amp; Burn</h2><p>Protein, weight, workouts</p></div></a>
-    <a class="card" href="/piano/"><span class="icon" style="--c:#5b4a9b;--t:#ebe7f6" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 9.5 16 3.8M12 9.5V5.7M4.5 14v6.5M18 14v6.5M11 14v4.5M9.8 18.5h2.4"/><path class="fill" d="M3 9.5h12c4 0 6 1 6 2.5 0 1.3-1.5 2-4 2H3z"/></svg></span><div><h2>Piano Binder</h2><p>Lesson sheets and sheet music</p></div></a>
-    <a class="card" href="/recipes/"><span class="icon" style="--c:#c4452b;--t:#fbe6df" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Z"/><path d="M9 9h6M9 13h6"/></svg></span><div><h2>Recipe Vault</h2><p>Family recipes, saved &amp; shared</p></div></a>
-    <a class="card" href="https://www.youtube.com/@charles99301" target="_blank" rel="noopener"><span class="icon" style="--c:#e62117;--t:#fde4e2" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path class="fill" d="M10 9.2v5.6l4.8-2.8Z"/></svg></span><div><h2>YouTube</h2><p>My channel</p></div></a>
+  <section aria-labelledby="s-biz">
+    <h2 class="label" id="s-biz">Business</h2>
+    <div class="grid">
+      <a class="card" style="--c:#2b5c8a" href="https://www.carmonajonesproperties.com/" target="_blank" rel="noopener">
+        <span class="tag" title="Opens carmonajonesproperties.com"><svg><use href="#out"/></svg></span>
+        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 9.5V20h14V9.5"/><path d="M10 20v-5h4v5"/></svg></span>
+        <div><h3>Carmona Jones Properties</h3><p>Booking site for both rentals</p></div>
+      </a>
+      <a class="card" style="--c:#0b1f3a" href="/jerseys/">
+        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 3 3 6l2 4 2-1v11h10V9l2 1 2-4-5-3c0 1.7-1.8 3-4 3S8 4.7 8 3Z"/><path d="M10 12h4M12 12v5"/></svg></span>
+        <div><h3>Jersey Shop</h3><p>Orders, inventory, supplier</p></div>
+      </a>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-rent">
+    <h2 class="label" id="s-rent">Rental tools</h2>
+    <div class="grid">
+      <a class="card" style="--c:#1f5f6b" href="/TheTurnoverCrew/">
+        <span class="tag" title="Needs PIN"><svg><use href="#lock"/></svg></span>
+        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 9.5V20h14V9.5"/><path class="fill" d="M12 10.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9Z"/></svg></span>
+        <div><h3>The Turnover Crew</h3><p>Cleaners, snack shop, repairs</p></div>
+      </a>
+      <a class="card" style="--c:#c95f28" href="/prices/">
+        <span class="tag" title="Needs PIN"><svg><use href="#lock"/></svg></span>
+        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3"/><path d="M7 8v8M10 8v8M12.5 8v8M15 8v8M17 8v8"/></svg></span>
+        <div><h3>Snack Prices</h3><p>Scan snacks, look up prices</p></div>
+      </a>
+      <a class="card" style="--c:#2e7d4f" href="/stessa/">
+        <span class="tag" title="Needs PIN"><svg><use href="#lock"/></svg></span>
+        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M8.5 16v-4M12.5 16V8M16.5 16v-6"/></svg></span>
+        <div><h3>Stessa 2.0</h3><p>Rental income, expenses, receipts</p></div>
+      </a>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-me">
+    <h2 class="label" id="s-me">Personal</h2>
+    <div class="grid">
+      <a class="card" style="--c:#b8452e" href="/buildandburn/">
+        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.5 7.5v9M3.5 10v4M17.5 7.5v9M20.5 10v4M6.5 12h11"/></svg></span>
+        <div><h3>Build &amp; Burn</h3><p>Protein, weight, workouts</p></div>
+      </a>
+      <a class="card" style="--c:#5b4a9b" href="/piano/">
+        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 9.5 16 3.8M12 9.5V5.7M4.5 14v6.5M18 14v6.5M11 14v4.5M9.8 18.5h2.4"/><path class="fill" d="M3 9.5h12c4 0 6 1 6 2.5 0 1.3-1.5 2-4 2H3z"/></svg></span>
+        <div><h3>Piano Binder</h3><p>Lesson sheets and sheet music</p></div>
+      </a>
+      <a class="card" style="--c:#a8572e" href="/recipes/">
+        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Z"/><path d="M9 9h6M9 13h6"/></svg></span>
+        <div><h3>Recipe Vault</h3><p>Family recipes, saved &amp; shared</p></div>
+      </a>
+      <a class="card" style="--c:#d42a20" href="https://www.youtube.com/@charles99301" target="_blank" rel="noopener">
+        <span class="tag" title="Opens YouTube"><svg><use href="#out"/></svg></span>
+        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path class="fill" d="M10 9.2v5.6l4.8-2.8Z"/></svg></span>
+        <div><h3>YouTube</h3><p>My channel</p></div>
+      </a>
+    </div>
   </section>
 </main>
-<footer>&copy; Carmona Jones Properties, LLC</footer>
+<footer>
+  <span>&copy; Carmona Jones Properties, LLC</span>
+  <span class="key"><svg><use href="#lock"/></svg> needs PIN &nbsp; <svg><use href="#out"/></svg> opens another site</span>
+</footer>
+</div>
 </body>
 </html>
