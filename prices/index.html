@@ -486,7 +486,7 @@ function renderHist(r) {
   var h = $('hist'), hs = r && r.history, grp = r && r.group;
   if (hs && hs.byStore && hs.byStore.length) {
     h.innerHTML = '<div class="by" style="font-weight:700;margin-bottom:2px">' + (grp ? '🔗 Same product at every store and size, cheapest each first' : 'Prices you have seen') + '</div>' + hs.byStore.map(function (x, i) {
-      return '<div class="hrow"><div><b>' + esc(x.store) + '</b>' + (x.sizeLabel ? '<span class="size">' + esc(x.sizeLabel) + '</span>' : '') + (i === 0 && hs.byStore.length > 1 ? '<span class="best">Cheapest</span>' : '') + saleTag(x) + '<div class="by">' + esc(x.date) + (x.note ? ' · ' + esc(x.note) : '') + '</div></div>' +
+      return '<div class="hrow"><div><b>' + esc(x.store) + '</b>' + (x.sizeLabel ? '<span class="size">' + esc(x.sizeLabel) + '</span>' : '') + (i === 0 && hs.byStore.length > 1 ? '<span class="best">Cheapest</span>' : '') + saleTag(x) + '<div class="by">' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + (x.note ? ' · ' + esc(x.note) : '') + '</div></div>' +
         '<div style="text-align:right"><b>' + money(x.price) + '</b>' + (x.count > 1 ? '<div class="by">' + x.count + ' for ' + money(x.price) + ' · ' + money(x.each) + ' each</div>' : '') +
         (x.perUnit ? '<div class="by">' + esc(x.perUnit) + '</div>' : '') + (x.regular ? '<div class="by">reg. ' + money(x.regular) + '</div>' : '') + '</div></div>';
     }).join('') + (hs.bestRegular && hs.best && hs.best.sale && !hs.best.ended ? '<div class="by" style="margin-top:4px">Best regular price: <b>' + esc(hs.bestRegular.store) + '</b> ' + money(hs.bestRegular.each) + ' each</div>' : '') +
@@ -742,7 +742,7 @@ function closeList() { show('scanView'); if ($('panel').classList.contains('hidd
 function listTab(t) { TAB = t; $('tabAll').className = 'sm' + (t === 'all' ? '' : ' ghost'); $('tabSale').className = 'sm' + (t === 'sale' ? '' : ' ghost'); renderList(); }
 function priceRow(x, i, p) {
   var line = '<div class="hrow"><div style="min-width:0"><b>' + esc(x.store) + '</b>' + (x.sizeLabel ? '<span class="size">' + esc(x.sizeLabel) + '</span>' : '') + (i === 0 && p.byStore.length > 1 ? '<span class="best">Cheapest</span>' : '') + saleTag(x) +
-    '<div class="by">' + esc(x.date) + (x.perUnit ? ' · ' + esc(x.perUnit) : '') + (x.note ? ' · ' + esc(x.note) : '') + '</div>' +
+    '<div class="by">' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + (x.perUnit ? ' · ' + esc(x.perUnit) : '') + (x.note ? ' · ' + esc(x.note) : '') + '</div>' +
     (x.regular ? '<div class="by">reg. ' + money(x.regular) + ' · save ' + money(x.save) + ' (' + x.pct + '%)</div>' : '') +
     (x.ended && x.regEach ? '<div class="by">Now about ' + money(x.regEach) + ' each at the regular price</div>' : '') + '</div>' +
     '<div style="text-align:right;white-space:nowrap"><b>' + money(x.price) + '</b>' + (x.count > 1 ? '<div class="by">' + x.count + ' · ' + money(x.each) + ' each</div>' : '') +
