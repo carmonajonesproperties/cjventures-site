@@ -73,6 +73,7 @@ label{display:block;font-weight:700;font-size:14px;margin:12px 0 6px}
 .match{background:#1c2140;border:1px solid #39427a;border-radius:12px;padding:10px 12px;margin-top:10px}
 .match .hrow{align-items:center}
 .photoprev{outline:3px solid var(--brand2)}
+.sech{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;justify-content:space-between;align-items:baseline;font-weight:800;font-size:17px;padding:12px 2px 6px;margin-top:4px;border-bottom:2px solid var(--brand)}
 .hidden{display:none!important}
 </style>
 </head>
@@ -800,6 +801,23 @@ function saveEdit(id) {
     .then(function () { EDIT = ''; toast('✔ Changes saved'); return loadList(); })
     .catch(function (e) { if (!PIN) return needPin(e.message); var m = $('efMsg'); if (m) m.textContent = e.message; });
 }
+/* 🗂️ Price list sections. Each product goes in a section by words in its name; anything unclear goes in Other. */
+var SECTIONS = [['drinks', '🥤 Drinks'], ['snacks', '🍿 Snacks'], ['candy', '🍬 Candy & gum'], ['meals', '🍜 Meals'], ['other', '📦 Other']];
+var SEC_RULES = [
+  ['candy', /\b(candy|candies|gum|gumballs?|taffy|nerds|airheads?|sour punch|twizzlers?|skittles|starburst|smarties|charleston chew|peppermint patt\w*|york|lollipops?|suckers|pops|tootsie|jolly ranchers?|life ?savers|m&m'?s|snickers|twix|milky way|musketeers|baby ruth|reese'?s|kit ?kat|hershey'?s?|butterfinger|payday|almond joy|mounds|haribo|gumm(y|ies)|swedish fish|sour patch|jelly ?beans?|mentos|tic ?tacs?|altoids|ring pops?|warheads|now ?(and|&|n) ?later|whoppers|milk duds|junior mints|mike ?(and|&|n) ?ike|hot tamales|candy bars?|chocolate bars?|caramels?|licorice|toffee|fudge|truffles?|peeps|lifesavers)\b/],
+  ['snacks', /\b(bars?|krispies?|treats?|marshmallows?|cookies?|crackers?|chips|popcorn|jerky|granola|rice cakes?)\b/],
+  ['drinks', /\b(drinks?|soda|water|sparkling|seltzer|juice|nectar|lemonade|milk|shakes?|coffee|frappuccino|latte|cold brew|tea|cola|coke|pepsi|dew|dr\.? ?pepper|sprite|fanta|7 ?up|root beer|ginger ale|gatorade|powerade|bodyarmor|monster|red ?bull|rdb|celsius|bang|alani|energy|electrolytes?|hydration|liquid i\.?v\.?|lacroix|la croix|bubly|perrier|kerns?|kern's|capri ?sun|vitamin ?water|kombucha|smoothies?|yoo-?hoo|horchata)\b|pellegrino|caprisun|darigold/],
+  ['meals', /\b(noodles?|ramen|chow mein|udon|pho|mac|macaroni|chili|tuna|chicken of the sea|spam|soups?|oatmeal|grits|rice|bibigo|nissin|nongshim|maruchan|pasta|spaghetti|ravioli|chef boyardee|beans|hormel|stew|burritos?|pizzas?|hot pockets?|meals?|entrees?|lunchables)\b/],
+  ['snacks', /\b(snacks?|crisps|pretzels?|cheetos|doritos|fritos|takis|cheez\w*|goldfish|oreos?|nutter butter|biscotti|biscuits?|belvita|wafers?|nuts|peanuts|almonds|cashews|pistachios|trail mix|seeds|sticks|landjaeger|pork|beef|slim jim|clif|kind|protein|protien|muffins?|donettes|donuts?|doughnuts?|hostess|little debbie|cakes?|brownies?|pastr(y|ies)|pop-?tarts?|fruit|squeez\w*|applesauce|peaches|pears|mandarins?|pudding|jell-?o|seaweed|crispy|kettle|lays|pringles|sun ?chips|nabisco)\b/],
+  ['candy', /chocolate/]
+];
+function sectionOf(p) {
+  var t = String(p.name || '').toLowerCase().replace(/[‘’]/g, "'");
+  for (var i = 0; i < SEC_RULES.length; i++) if (SEC_RULES[i][1].test(t)) return SEC_RULES[i][0];
+  if (/\bfl\.? ?oz\b|\d\s*ml\b/i.test(String(p.size || ''))) return 'drinks';   // sold by the fluid ounce or ml: a drink
+  return 'other';
+}
+function sectionLabel(k) { for (var i = 0; i < SECTIONS.length; i++) if (SECTIONS[i][0] === k) return SECTIONS[i][1]; return ''; }
 function renderList() {
   var q = $('listQ').value.trim().toLowerCase();
   if (TAB === 'sale') {
@@ -811,9 +829,9 @@ function renderList() {
     }).join('') : '<p class="by">No sales on right now. Tick "This is a sale price" when you save one and it shows here until the sale ends.</p>';
     return;
   }
-  var items = LIST.filter(function (p) { return !q || (p.name + ' ' + p.size + ' ' + p.code + ' ' + p.byStore.map(function (s) { return s.store; }).join(' ')).toLowerCase().indexOf(q) >= 0; });
+  var items = LIST.filter(function (p) { return !q || (p.name + ' ' + p.size + ' ' + p.code + ' ' + sectionLabel(sectionOf(p)) + ' ' + p.byStore.map(function (s) { return s.store; }).join(' ')).toLowerCase().indexOf(q) >= 0; });
   if (!items.length) { $('listOut').innerHTML = '<p class="by">' + (LIST.length ? 'Nothing matches.' : 'No prices yet. Scan an item and save its price.') + '</p>'; return; }
-  $('listOut').innerHTML = items.map(function (p) {
+  var card = function (p) {
     var b = p.best || {}, r = p.bestRegular, g = p.pricing, shown = {};
     p.byStore.forEach(function (x) { shown[x.id] = 1; });
     var older = (p.all || []).filter(function (x) { return !shown[x.id]; });
@@ -829,6 +847,12 @@ function renderList() {
         older.map(function (x) { return priceRow(x, 1, p); }).join('') + '</div></details>' : '') +
       linkBlock(p) +
       '<div class="by" style="margin-top:6px">Barcode ' + esc(p.code) + ' · ' + p.n + ' price' + (p.n === 1 ? '' : 's') + ' logged</div></details>';
+  };
+  var bySec = {};
+  items.forEach(function (p) { var k = sectionOf(p); (bySec[k] = bySec[k] || []).push(p); });
+  $('listOut').innerHTML = SECTIONS.filter(function (s) { return bySec[s[0]]; }).map(function (s) {
+    var g = bySec[s[0]];
+    return '<div class="sech"><span>' + s[1] + '</span><span class="by">' + g.length + ' item' + (g.length === 1 ? '' : 's') + '</span></div>' + g.map(card).join('');
   }).join('');
 }
 $('listOut').addEventListener('click', function (e) {
