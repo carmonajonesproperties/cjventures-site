@@ -69,6 +69,10 @@ label{display:block;font-weight:700;font-size:14px;margin:12px 0 6px}
 .pbox{background:#f3fbf9;border:1px solid #cdeee7;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:14px}
 .pbox .big{font-size:20px;font-weight:800}
 .pline{display:flex;justify-content:space-between;gap:8px;padding:3px 0}
+.size{background:#eef2ff;color:#3949ab;border-radius:6px;padding:1px 6px;font-size:12px;font-weight:700;margin-left:6px;white-space:nowrap}
+.match{background:#eef2ff;border:1px solid #c9d2ff;border-radius:12px;padding:10px 12px;margin-top:10px}
+.match .hrow{align-items:center}
+.photoprev{outline:3px solid var(--brand2)}
 .hidden{display:none!important}
 </style>
 </head>
@@ -113,6 +117,8 @@ label{display:block;font-weight:700;font-size:14px;margin:12px 0 6px}
           <div class="name" id="pName"></div>
           <div class="by" id="pMeta"></div>
           <button class="ghost sm" id="renameBtn" style="margin-top:6px" onclick="showNameEdit()">✏️ Fix the name</button>
+          <button class="ghost sm hidden" id="photoBtn" style="margin-top:6px" onclick="takePhoto()">📷 Add a photo</button>
+          <input id="photoIn" type="file" accept="image/*" capture="environment" class="hidden">
         </div>
       </div>
       <div id="nameEdit" class="hidden">
@@ -122,6 +128,7 @@ label{display:block;font-weight:700;font-size:14px;margin:12px 0 6px}
       </div>
       <div id="shopNote" class="by hidden" style="margin-top:8px"></div>
       <div id="hist" class="hist hidden"></div>
+      <div id="matchBox" class="match hidden"></div>
 
       <label for="storeIn">Store</label>
       <input id="storeIn" list="storeList" placeholder="e.g. Costco" autocomplete="off" oninput="markChips()">
@@ -225,7 +232,7 @@ document.addEventListener('focusin', function (e) {
 }, true);
 
 /* ---------- talking to the app (JSONP: a script tag, which works from any website) ---------- */
-var PIN = store('cjp_pin') || '', jn = 0;
+var PIN = store('cjp_pin') || '', jn = 0, OWNER = store('cjp_owner') !== '0';
 function api(action, params) {
   return new Promise(function (ok, bad) {
     var name = '__pl' + (++jn) + '_' + Date.now(), s = document.createElement('script');
@@ -252,6 +259,7 @@ function unlock() {
   PIN = p;
   api('hello').then(function (r) {
     store('cjp_pin', p); $('pinBtn').disabled = false; $('pinIn').value = '';
+    OWNER = r.owner !== false; store('cjp_owner', OWNER ? '1' : '0');
     STORES = r.stores || []; startScanner();
   }).catch(function (e) { PIN = ''; $('pinBtn').disabled = false; $('pinMsg').textContent = e.message; });
 }
@@ -424,7 +432,7 @@ function got(code) {
   api('look', { bc: code }).then(function (r) {
     if (!CUR || CUR.code !== code) return;
     STORES = r.stores || STORES; CUR.item = r.item; CUR.r = r;
-    status(r.item ? '' : 'Not found online. Type its name once and the app will remember it.', r.item ? '' : 'bad');
+    status(r.item ? '' : 'Not found online. Type its name once and the app will remember it. You can add a photo too.', r.item ? '' : 'bad');
     fillPanel(r, false);
   }).catch(function (e) {
     if (!CUR || CUR.code !== code) return;
@@ -439,7 +447,13 @@ function fillPanel(r, loading) {
   $('panel').classList.remove('hidden');
   $('pName').textContent = loading ? 'Looking it up…' : (it ? it.name : 'Unknown item');
   $('pMeta').textContent = it ? [it.size, it.source ? 'from ' + it.source : ''].filter(Boolean).join(' · ') : '';
-  var img = $('pImg'); if (it && it.photo) { img.src = it.photo; img.classList.remove('hidden'); } else { img.removeAttribute('src'); img.classList.add('hidden'); }
+  var img = $('pImg'), mine = CUR && CUR.photo;
+  img.classList.toggle('photoprev', !!mine);
+  if (mine) { img.src = mine; img.classList.remove('hidden'); }
+  else if (it && it.photo) { img.src = it.photo; img.classList.remove('hidden'); } else { img.removeAttribute('src'); img.classList.add('hidden'); }
+  // 📷 (18.9): an item with no picture (one you add yourself, or one found without a photo) can get one from the camera.
+  $('photoBtn').classList.toggle('hidden', !!loading || !!(it && it.photo));
+  $('photoBtn').textContent = mine ? '📷 Retake photo' : '📷 Add a photo';
   var unknown = !loading && !it;
   $('nameEdit').classList.toggle('hidden', !unknown);
   $('renameBtn').classList.toggle('hidden', loading || unknown);
@@ -448,15 +462,7 @@ function fillPanel(r, loading) {
   var sn = $('shopNote');
   if (r && r.shop) { sn.innerHTML = '🛒 In your shop: ' + esc(r.shop.name) + ' · cost ' + money(r.shop.cost) + ' · sells for ' + money(r.shop.retail); sn.classList.remove('hidden'); }
   else sn.classList.add('hidden');
-  var h = $('hist'), hs = r && r.history;
-  if (hs && hs.byStore && hs.byStore.length) {
-    h.innerHTML = '<div class="by" style="font-weight:700;margin-bottom:2px">Prices you have seen</div>' + hs.byStore.map(function (x, i) {
-      return '<div class="hrow"><div><b>' + esc(x.store) + '</b>' + (i === 0 && hs.byStore.length > 1 ? '<span class="best">Cheapest</span>' : '') + saleTag(x) + '<div class="by">' + esc(x.date) + (x.note ? ' · ' + esc(x.note) : '') + '</div></div>' +
-        '<div style="text-align:right"><b>' + money(x.price) + '</b>' + (x.count > 1 ? '<div class="by">' + x.count + ' for ' + money(x.price) + ' · ' + money(x.each) + ' each</div>' : '') +
-        (x.perUnit ? '<div class="by">' + esc(x.perUnit) + '</div>' : '') + (x.regular ? '<div class="by">reg. ' + money(x.regular) + '</div>' : '') + '</div></div>';
-    }).join('') + (hs.bestRegular && hs.best && hs.best.sale && !hs.best.ended ? '<div class="by" style="margin-top:4px">Best regular price: <b>' + esc(hs.bestRegular.store) + '</b> ' + money(hs.bestRegular.each) + ' each</div>' : '');
-    h.classList.remove('hidden');
-  } else h.classList.add('hidden');
+  renderHist(r);
   if (r && r.checkOk === false) status('Heads up: that barcode looks misread. Scan it again if the name is wrong.', 'bad');
   var last = store('cjp_store') || '';
   if (!$('storeIn').value) $('storeIn').value = last;
@@ -474,6 +480,71 @@ function fillPanel(r, loading) {
   if (!loading) setTimeout(function () { (unknown ? $('nameIn') : (!$('storeIn').value ? $('storeIn') : $('priceIn'))).focus(); }, 150);
   $('panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+/* Past prices for this item. Linked sizes of the same product (18.8) are listed together, cheapest per item first. */
+function renderHist(r) {
+  var h = $('hist'), hs = r && r.history, grp = r && r.group;
+  if (hs && hs.byStore && hs.byStore.length) {
+    h.innerHTML = '<div class="by" style="font-weight:700;margin-bottom:2px">' + (grp ? '🔗 Same product at every store and size, cheapest each first' : 'Prices you have seen') + '</div>' + hs.byStore.map(function (x, i) {
+      return '<div class="hrow"><div><b>' + esc(x.store) + '</b>' + (x.sizeLabel ? '<span class="size">' + esc(x.sizeLabel) + '</span>' : '') + (i === 0 && hs.byStore.length > 1 ? '<span class="best">Cheapest</span>' : '') + saleTag(x) + '<div class="by">' + esc(x.date) + (x.note ? ' · ' + esc(x.note) : '') + '</div></div>' +
+        '<div style="text-align:right"><b>' + money(x.price) + '</b>' + (x.count > 1 ? '<div class="by">' + x.count + ' for ' + money(x.price) + ' · ' + money(x.each) + ' each</div>' : '') +
+        (x.perUnit ? '<div class="by">' + esc(x.perUnit) + '</div>' : '') + (x.regular ? '<div class="by">reg. ' + money(x.regular) + '</div>' : '') + '</div></div>';
+    }).join('') + (hs.bestRegular && hs.best && hs.best.sale && !hs.best.ended ? '<div class="by" style="margin-top:4px">Best regular price: <b>' + esc(hs.bestRegular.store) + '</b> ' + money(hs.bestRegular.each) + ' each</div>' : '') +
+      (grp && OWNER ? '<button class="ghost sm" style="margin-top:6px" data-unlinkcur="1">Not the same product? Unlink this one</button>' : '');
+    h.classList.remove('hidden');
+  } else h.classList.add('hidden');
+  var m = $('matchBox'), ms = r && r.matches;
+  if (ms && ms.length && OWNER && !(CUR && CUR.noMatch)) {
+    m.innerHTML = '<div style="font-weight:700">🔗 Same product as one of these, in another size?</div><div class="by">Link it once and prices compare per item across sizes and stores.</div>' +
+      ms.map(function (x) {
+        return '<div class="hrow"><div style="min-width:0"><b>' + esc(x.name) + '</b>' + (x.size ? ' <span class="by">' + esc(x.size) + '</span>' : '') +
+          (x.best ? '<div class="by">' + money(x.best.each) + ' each at ' + esc(x.best.store) + (x.best.sizeLabel ? ' (' + esc(x.best.sizeLabel) + ')' : '') + '</div>' : '') + '</div>' +
+          '<button class="alt sm" data-link="' + esc(x.code) + '">Link</button></div>';
+      }).join('') + '<button class="ghost sm" style="margin-top:6px" data-nolink="1">Not the same</button>';
+    m.classList.remove('hidden');
+  } else m.classList.add('hidden');
+}
+$('hist').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-unlinkcur]'); if (!b || !CUR) return;
+  if (!confirm('Keep this barcode as its own product from now on?')) return;
+  var code = CUR.code; b.disabled = true; b.textContent = 'Unlinking…';
+  api('unlink', { bc: code }).then(function (r) {
+    if (!CUR || CUR.code !== code) return;
+    CUR.r = r; CUR.noMatch = true; renderHist(r); profitCalc(); toast('✔ Unlinked: this barcode is its own product now');
+  }).catch(function (er) { if (!PIN) return needPin(er.message); b.disabled = false; b.textContent = 'Not the same product? Unlink this one'; toast(er.message); });
+});
+$('matchBox').addEventListener('click', function (e) {
+  if (e.target.closest('[data-nolink]')) { if (CUR) CUR.noMatch = true; $('matchBox').classList.add('hidden'); return; }
+  var b = e.target.closest('[data-link]'); if (!b || !CUR) return;
+  var code = CUR.code; b.disabled = true; b.textContent = 'Linking…';
+  api('link', { bc: code, to: b.getAttribute('data-link') }).then(function (r) {
+    if (!CUR || CUR.code !== code) return;
+    CUR.r = r; renderHist(r); profitCalc(); toast('✔ Linked: prices now compare per item across sizes');
+  }).catch(function (er) { if (!PIN) return needPin(er.message); b.disabled = false; b.textContent = 'Link'; toast(er.message); });
+});
+/* 📷 Photo (18.9): the phone's camera app takes it, the page shrinks it (640 px, JPEG), and it is sent after the price. */
+function takePhoto() {
+  if (!CUR) return;
+  stopCamera();                       // let the camera app have the camera
+  $('photoIn').value = ''; $('photoIn').click();
+}
+$('photoIn').addEventListener('change', function () {
+  var f = this.files && this.files[0]; if (!f || !CUR) return;
+  var code = CUR.code, url = URL.createObjectURL(f), im = new Image();
+  $('photoBtn').textContent = 'Getting the photo…';
+  im.onload = function () {
+    var k = Math.min(1, 640 / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    if (!CUR || CUR.code !== code) return;
+    CUR.photo = c.toDataURL('image/jpeg', 0.75);
+    var img = $('pImg'); img.src = CUR.photo; img.classList.remove('hidden'); img.classList.add('photoprev');
+    $('photoBtn').textContent = '📷 Retake photo';
+    toast('📷 Photo ready. It saves with the price.');
+  };
+  im.onerror = function () { URL.revokeObjectURL(url); $('photoBtn').textContent = '📷 Add a photo'; toast('Could not read that photo. Try again.'); };
+  im.src = url;
+});
 function showNameEdit() { $('nameEdit').classList.remove('hidden'); $('nameLbl').textContent = 'Fix the name'; $('renameBtn').classList.add('hidden'); $('nameIn').focus(); }
 function renderStores() {
   var list = STORES.slice(); var last = store('cjp_store'); if (last && list.indexOf(last) < 0) list.unshift(last);
@@ -555,11 +626,12 @@ function pmLine(label, m, strong) {
 function profitCalc() {
   var out = $('profitOut'), r = CUR && CUR.r, p = priceVal(), n = Math.max(1, parseInt($('countIn').value, 10) || 1), g = pricing();
   if (!(p > 0)) { out.innerHTML = ''; out.classList.add('hidden'); return; }
-  var each = p / n, s = suggestPrice(each, g.rate, g.minMargin), mine = moneyIn($('sellIn').value);
+  var each = p / n, base = g.cost > 0 && g.cost < each ? g.cost : each;   // cheapest per item across linked sizes and stores
+  var s = suggestPrice(base, g.rate, g.minMargin), mine = moneyIn($('sellIn').value);
   $('sellIn').placeholder = s ? 'Suggested ' + money(s.price) + ' (leave empty to use it)' : 'Leave empty to use the suggested price';
-  var shop = r && r.shop && r.shop.retail > 0 ? priceMath(r.shop.retail, each, g.rate) : null;
-  out.innerHTML = '<div class="by">Your cost ' + money(each) + ' each' + (g.rate ? ' · prices include ' + (Math.round(g.rate * 1000) / 10) + '% sales tax' : ' · no sales tax on this item') + '</div>' +
-    pmLine('💡 Suggested price', s, !mine) + (mine > 0 ? pmLine('✏️ Your price', priceMath(mine, each, g.rate), true) : '') + pmLine('🛒 In your shop now', shop) +
+  var shop = r && r.shop && r.shop.retail > 0 ? priceMath(r.shop.retail, base, g.rate) : null;
+  out.innerHTML = '<div class="by">Your cost ' + money(each) + ' each' + (base < each ? ' · cheapest anywhere ' + money(base) + ' at ' + esc(g.costStore) + ' (used below)' : '') + (g.rate ? ' · prices include ' + (Math.round(g.rate * 1000) / 10) + '% sales tax' : ' · no sales tax on this item') + '</div>' +
+    pmLine('💡 Suggested price', s, !mine) + (mine > 0 ? pmLine('✏️ Your price', priceMath(mine, base, g.rate), true) : '') + pmLine('🛒 In your shop now', shop) +
     (r && r.shop && r.shop.cost > 0 && each < r.shop.cost - 0.004 ? '<div class="by good">' + money(r.shop.cost - each) + ' cheaper than your current cost (' + money(r.shop.cost) + ').</div>' : '');
   out.classList.remove('hidden');
 }
@@ -591,8 +663,11 @@ function savePrice() {
   if (nt) job.nt = nt;
   var sp = moneyIn($('sellIn').value);
   if (sp > 0 && sp.toFixed(2) !== (CUR.sell0 || '')) job.sp = sp.toFixed(2);   // your own selling price, kept for this barcode
+  if (CUR.photo) job.ph = CUR.photo;                                              // 📷 sent after the price (18.9)
   queueAdd(job);
-  toast('Saving: ' + job.label);
+  if (job.ph && !queueGet().some(function (x) { return x.key === job.key; })) {   // phone storage full: keep the price, drop the photo
+    delete job.ph; queueAdd(job); toast('No room to keep the photo on this phone. Saving the price without it.');
+  } else toast('Saving: ' + job.label);
   CUR = null; $('panel').classList.add('hidden'); status('');
   window.scrollTo({ top: 0, behavior: 'smooth' });
   resumeScan();
@@ -603,13 +678,20 @@ function savePrice() {
 function queueGet() { try { return JSON.parse(store('cjp_queue') || '[]'); } catch (e) { return []; } }
 function queueSet(q) { store('cjp_queue', JSON.stringify(q)); showQueue(); }
 function queueAdd(j) { var q = queueGet(); q.push(j); queueSet(q); }
-function showQueue() { var n = queueGet().length, el = $('queue'); el.style.display = n ? 'block' : 'none'; el.textContent = '⏳ ' + n + ' price' + (n === 1 ? '' : 's') + ' waiting to send. They send by themselves when you have signal.'; }
+function showQueue() {
+  var q = queueGet(), ph = q.filter(function (x) { return x.type === 'photo'; }).length, n = q.length - ph, el = $('queue');
+  el.style.display = q.length ? 'block' : 'none';
+  el.textContent = '⏳ ' + [n ? n + ' price' + (n === 1 ? '' : 's') : '', ph ? ph + ' photo' + (ph === 1 ? '' : 's') : ''].filter(Boolean).join(' and ') + ' waiting to send. They send by themselves when you have signal.';
+}
 var sending = false;
 function sendQueue() {
   if (sending || !PIN) return; var q = queueGet(); if (!q.length) return;
   sending = true; var j = q[0];
+  if (j.type === 'photo') return sendPhoto(j);
   api('save', { bc: j.bc, nm: j.nm, sz: j.sz, st: j.st, pr: j.pr, ct: j.ct, key: j.key, sl: j.sl, rg: j.rg, en: j.en, nt: j.nt, sp: j.sp }).then(function () {
-    sending = false; queueSet(queueGet().filter(function (x) { return x.key !== j.key; }));
+    sending = false;
+    // The price is in. A photo taken with it goes next, as its own step.
+    queueSet(queueGet().map(function (x) { return x.key !== j.key ? x : (j.ph ? { type: 'photo', key: j.key, bc: j.bc, ph: j.ph, label: j.nm || j.bc, tries: 0 } : null); }).filter(Boolean));
     toast('✔ Saved: ' + j.label); sendQueue();
   }).catch(function (e) {
     sending = false;
@@ -618,11 +700,35 @@ function sendQueue() {
     showQueue();
   });
 }
+/* The photo goes by POST (too big for a link). Another website can't read the answer to a POST, so the page then asks
+   the app whether that photo arrived, a few times, before it tries again later. */
+function sendPhoto(j) {
+  var pk = String(j.key) + 'f', tries = 0;
+  var done = function (msg, keep) {
+    sending = false;
+    var q = queueGet().filter(function (x) { return !(x.type === 'photo' && x.key === j.key); });
+    if (keep) q.push(keep);            // try again later, after anything else waiting
+    queueSet(q); if (msg) toast(msg); if (!keep) sendQueue();
+  };
+  var check = function () {
+    api('photook', { key: pk }).then(function (r) {
+      if (r.photo) return done('✔ Photo saved: ' + j.label);
+      if (++tries < 6) return setTimeout(check, 2000);
+      j.tries = (j.tries || 0) + 1;
+      if (j.tries >= 4) return done('✖ Photo not saved (' + j.label + '). Scan it again to retake it.');
+      done('', j);
+    }).catch(function (e) { if (!PIN) { sending = false; return needPin(e.message); } j.tries = (j.tries || 0) + 1; done('', j.tries >= 4 ? null : j); });
+  };
+  try {
+    fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ pl: 'photo', k: PIN, bc: j.bc, key: pk, ph: j.ph }) })
+      .then(function () { setTimeout(check, 800); }, function () { sending = false; showQueue(); });
+  } catch (e) { sending = false; showQueue(); }
+}
 window.addEventListener('online', sendQueue);
 setInterval(sendQueue, 15000);
 
 /* ---------- price list (tap Edit on any price to fix it later) ---------- */
-var LIST = [], SALES = [], TAB = 'all', EDIT = '';
+var LIST = [], SALES = [], TAB = 'all', EDIT = '', LINKING = '';
 function openList() {
   pauseScan(); stopCamera(); show('listView'); EDIT = ''; $('listOut').innerHTML = '<p class="by">Loading…</p>';
   loadList();
@@ -634,7 +740,7 @@ function loadList() {
 function closeList() { show('scanView'); if ($('panel').classList.contains('hidden')) startCamera(); else $('camStart').classList.remove('hidden'); }
 function listTab(t) { TAB = t; $('tabAll').className = 'sm' + (t === 'all' ? '' : ' ghost'); $('tabSale').className = 'sm' + (t === 'sale' ? '' : ' ghost'); renderList(); }
 function priceRow(x, i, p) {
-  var line = '<div class="hrow"><div style="min-width:0"><b>' + esc(x.store) + '</b>' + (i === 0 && p.byStore.length > 1 ? '<span class="best">Cheapest</span>' : '') + saleTag(x) +
+  var line = '<div class="hrow"><div style="min-width:0"><b>' + esc(x.store) + '</b>' + (x.sizeLabel ? '<span class="size">' + esc(x.sizeLabel) + '</span>' : '') + (i === 0 && p.byStore.length > 1 ? '<span class="best">Cheapest</span>' : '') + saleTag(x) +
     '<div class="by">' + esc(x.date) + (x.perUnit ? ' · ' + esc(x.perUnit) : '') + (x.note ? ' · ' + esc(x.note) : '') + '</div>' +
     (x.regular ? '<div class="by">reg. ' + money(x.regular) + ' · save ' + money(x.save) + ' (' + x.pct + '%)</div>' : '') +
     (x.ended && x.regEach ? '<div class="by">Now about ' + money(x.regEach) + ' each at the regular price</div>' : '') + '</div>' +
@@ -654,6 +760,22 @@ function editForm(x) {
     '<label>Note</label><input id="efNt" maxlength="120" value="' + esc(x.note || '') + '">' +
     '<div class="row" style="margin-top:10px"><button class="ghost" style="flex:0 0 auto" data-cancel="1">Cancel</button><button class="alt" style="flex:1" data-save="' + esc(x.id) + '">Save changes</button></div>' +
     '<div class="by" id="efMsg" style="margin-top:6px"></div></div>';
+}
+/* 🔗 Sizes linked as one product, with Unlink; and "Same product as…" to link this one to another product. */
+function linkBlock(p) {
+  var h = '';
+  if (p.members) h += '<div class="by" style="margin-top:8px"><b>🔗 Grouped as one product:</b></div>' + p.members.map(function (m) {
+    return '<div class="hrow"><div>' + esc(m.size || m.name) + (m.pack > 1 ? ' <span class="size">' + m.pack + '-pack</span>' : '') + ' <span class="by">· ' + m.n + ' price' + (m.n === 1 ? '' : 's') + '</span></div>' +
+      (OWNER ? '<button class="ghost sm" data-unlink="' + esc(m.code) + '">Unlink</button>' : '') + '</div>';
+  }).join('');
+  if (!OWNER) return h;
+  if (LINKING === p.code) {
+    var others = LIST.filter(function (x) { return x.code !== p.code; });
+    h += '<div class="match"><b>Same product as which one?</b>' + (others.length ? others.map(function (x) {
+      return '<div class="hrow"><div style="min-width:0">' + esc(x.name) + (x.size ? ' <span class="by">' + esc(x.size) + '</span>' : '') + '</div><button class="alt sm" data-dolink="' + esc(p.code) + '|' + esc(x.code) + '">Link</button></div>';
+    }).join('') : '<p class="by">No other products yet.</p>') + '<button class="ghost sm" style="margin-top:6px" data-linkcancel="1">Cancel</button></div>';
+  } else h += '<button class="ghost sm" style="margin-top:8px" data-linkto="' + esc(p.code) + '">🔗 Same product as…</button>';
+  return h;
 }
 function listPricing(p) {
   var g = p.pricing; if (!g || !g.cost) return '';
@@ -695,7 +817,7 @@ function renderList() {
     var b = p.best || {}, r = p.bestRegular, g = p.pricing, shown = {};
     p.byStore.forEach(function (x) { shown[x.id] = 1; });
     var older = (p.all || []).filter(function (x) { return !shown[x.id]; });
-    var editing = EDIT && (p.all || []).some(function (x) { return x.id === EDIT; }), editOld = EDIT && older.some(function (x) { return x.id === EDIT; });
+    var editing = (EDIT && (p.all || []).some(function (x) { return x.id === EDIT; })) || LINKING === p.code, editOld = EDIT && older.some(function (x) { return x.id === EDIT; });
     return '<details' + (editing ? ' open' : '') + '><summary>' + (p.photo ? '<img src="' + esc(p.photo) + '" alt="">' : '<span style="font-size:30px">🏷️</span>') +
       '<div style="flex:1;min-width:0"><b>' + esc(p.name) + '</b>' + (p.size ? ' <span class="by">' + esc(p.size) + '</span>' : '') + (p.onSale ? '<span class="sale">SALE</span>' : '') +
       '<div class="by">Cheapest: <b>' + esc(b.store || '') + '</b> ' + money(b.price) + (b.count > 1 ? ' for ' + b.count + ' (' + money(b.each) + ' each)' : '') + (b.perUnit ? ' · ' + esc(b.perUnit) : '') + '</div>' +
@@ -705,11 +827,24 @@ function renderList() {
       '<div class="hist">' + p.byStore.map(function (x, i) { return priceRow(x, i, p); }).join('') + '</div>' +
       (older.length ? '<details style="border:0;padding:0;margin:6px 0 0"' + (editOld ? ' open' : '') + '><summary class="by" style="display:block">Older prices (' + older.length + ')</summary><div class="hist">' +
         older.map(function (x) { return priceRow(x, 1, p); }).join('') + '</div></details>' : '') +
+      linkBlock(p) +
       '<div class="by" style="margin-top:6px">Barcode ' + esc(p.code) + ' · ' + p.n + ' price' + (p.n === 1 ? '' : 's') + ' logged</div></details>';
   }).join('');
 }
 $('listOut').addEventListener('click', function (e) {
   var ed = e.target.closest('[data-edit]'); if (ed) { e.preventDefault(); EDIT = ed.getAttribute('data-edit'); renderList(); var f = $('ef'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  var lt = e.target.closest('[data-linkto]'); if (lt) { e.preventDefault(); LINKING = lt.getAttribute('data-linkto'); EDIT = ''; renderList(); return; }
+  if (e.target.closest('[data-linkcancel]')) { e.preventDefault(); LINKING = ''; renderList(); return; }
+  var dl = e.target.closest('[data-dolink]'); if (dl) {
+    e.preventDefault(); var pr = dl.getAttribute('data-dolink').split('|'); dl.disabled = true;
+    api('link', { bc: pr[0], to: pr[1] }).then(function () { LINKING = ''; toast('✔ Linked as one product'); return loadList(); }).catch(function (er) { if (!PIN) return needPin(er.message); dl.disabled = false; toast(er.message); });
+    return;
+  }
+  var ul = e.target.closest('[data-unlink]'); if (ul) {
+    e.preventDefault(); if (!confirm('Keep this barcode as its own product from now on?')) return;
+    api('unlink', { bc: ul.getAttribute('data-unlink') }).then(function () { toast('✔ Unlinked'); return loadList(); }).catch(function (er) { if (!PIN) return needPin(er.message); toast(er.message); });
+    return;
+  }
   var se = e.target.closest('[data-sell]'); if (se) { e.preventDefault(); setSell(se.getAttribute('data-sell')); return; }
   var sv = e.target.closest('[data-save]'); if (sv) { e.preventDefault(); saveEdit(sv.getAttribute('data-save')); return; }
   if (e.target.closest('[data-cancel]')) { e.preventDefault(); EDIT = ''; renderList(); return; }
@@ -723,7 +858,7 @@ $('listOut').addEventListener('click', function (e) {
 function startScanner() { show('scanView'); showQueue(); renderStores(); startCamera(); sendQueue(); }
 if (PIN) {
   show('scanView'); showQueue(); startCamera();
-  api('hello').then(function (r) { STORES = r.stores || []; renderStores(); sendQueue(); })
+  api('hello').then(function (r) { OWNER = r.owner !== false; store('cjp_owner', OWNER ? '1' : '0'); STORES = r.stores || []; renderStores(); sendQueue(); })
     .catch(function (e) { if (!PIN) needPin(e.message); });
 } else needPin('');
 </script>
